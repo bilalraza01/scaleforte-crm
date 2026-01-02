@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Internal docs (not for public repo)
+BUILD_PLAN.md
+CLAUDE.md
+scaleforte-crm-prd.md
+
+# Local tooling
+.tools/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/settings.local.json
