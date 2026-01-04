@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+api/config/master.key
+api/config/credentials/*.key
 
 # Internal docs (not for public repo)
 BUILD_PLAN.md
@@ -10,6 +12,7 @@ scaleforte-crm-prd.md
 
 # Local tooling
 .tools/
+.docker-data/
 
 # OS
 .DS_Store
@@ -23,3 +26,24 @@ Thumbs.db
 
 # Claude
 .claude/settings.local.json
+
+# === Rails API (api/) ===
+/api/.bundle
+/api/log/*
+!/api/log/.keep
+/api/tmp/*
+!/api/tmp/.keep
+/api/tmp/pids/*
+!/api/tmp/pids/.keep
+/api/storage/*
+!/api/storage/.keep
+/api/public/assets
+
+# === Vite + React (web/) ===
+/web/node_modules
+/web/dist
+/web/dist-ssr
+/web/.vite
+/web/coverage
+/web/*.log
+/web/.eslintcache
