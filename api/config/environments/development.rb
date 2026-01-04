@@ -38,6 +38,15 @@ Rails.application.configure do
 
   config.action_mailer.perform_caching = false
 
+  # Mailcatcher (docker-compose service) — view sent mail at http://localhost:1080
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: ENV.fetch("SMTP_HOST", "127.0.0.1"),
+    port:    ENV.fetch("SMTP_PORT", "1025").to_i
+  }
+  config.action_mailer.default_url_options = { host: "localhost", port: 5173 }
+  Rails.application.routes.default_url_options = { host: "localhost", port: 5173 }
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

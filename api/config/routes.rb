@@ -1,10 +1,30 @@
 Rails.application.routes.draw do
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
-
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
+  # Liveness probe — UptimeRobot, Kamal Proxy.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  # Defines the root path route ("/")
-  # root "posts#index"
+  # Devise mounted at the top level so the warden scope stays :user
+  # (nesting devise_for inside namespace :api / :v1 prefixes the mapping
+  # key to :api_v1_user and breaks devise's failure-app delegator).
+  devise_for :users,
+             path: "api/v1/auth",
+             path_names: {
+               sign_in:  "sign_in",
+               sign_out: "sign_out"
+             },
+             controllers: {
+               sessions:    "api/v1/auth/sessions",
+               passwords:   "api/v1/auth/passwords",
+               invitations: "api/v1/auth/invitations"
+             },
+             skip: [:registrations]
+
+  namespace :api do
+    namespace :v1 do
+      get "me", to: "me#show"
+
+      resources :users, only: [:index, :show, :update] do
+        member { patch :deactivate }
+      end
+    end
+  end
 end
