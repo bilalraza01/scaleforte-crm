@@ -1,0 +1,123 @@
+name: scaleforte-crm
+
+# All services run with network_mode: host because snap-Docker on this host
+# breaks user-defined bridges (no NAT, no intra-bridge connectivity, only the
+# legacy `bridge` network has working iptables rules). Host networking avoids
+# the issue. Custom ports keep us clear of the system Postgres on 5432 and
+# any other already-running compose stacks (sizzline-backend, techforked).
+#
+# Listening on host:
+#   api          → 3010
+#   web (Vite)   → 5173
+#   db (Postgres)→ 5435
+#   redis        → 6381
+#   mailcatcher  → 1080 (web UI), 1025 (SMTP)
+
+services:
+  db:
+    image: postgres:16-alpine
+    network_mode: host
+    command: postgres -p 5435
+    environment:
+      POSTGRES_USER: scaleforte
+      POSTGRES_PASSWORD: scaleforte
+      POSTGRES_DB: scaleforte_crm_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scaleforte -p 5435"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    network_mode: host
+    command: redis-server --port 6381
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6381", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailcatcher:
+    image: dockage/mailcatcher:0.9.0
+    network_mode: host
+    # Serves SMTP on 1025, web UI on 1080.
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    user: "1000:1000"
+    network_mode: host
+    command: bin/rails server -b 0.0.0.0 -p 3010
+    volumes:
+      - ./api:/app
+      - ./.docker-data/api/bundle:/usr/local/bundle
+    environment:
+      DATABASE_URL: postgres://scaleforte:scaleforte@127.0.0.1:5435/scaleforte_crm_development
+      TEST_DATABASE_URL: postgres://scaleforte:scaleforte@127.0.0.1:5435/scaleforte_crm_test
+      REDIS_URL: redis://127.0.0.1:6381/0
+      RAILS_ENV: development
+      WEB_ORIGIN: http://localhost:5173
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: "1025"
+      PORT: "3010"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    tty: true
+    stdin_open: true
+
+  sidekiq:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    user: "1000:1000"
+    network_mode: host
+    command: bundle exec sidekiq
+    volumes:
+      - ./api:/app
+      - ./.docker-data/api/bundle:/usr/local/bundle
+    environment:
+      DATABASE_URL: postgres://scaleforte:scaleforte@127.0.0.1:5435/scaleforte_crm_development
+      REDIS_URL: redis://127.0.0.1:6381/0
+      RAILS_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    user: "1000:1000"
+    network_mode: host
+    command: npm run dev
+    volumes:
+      - ./web:/app
+      - ./.docker-data/web/node_modules:/app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:3010
+    tty: true
+    stdin_open: true
+
+volumes:
+  postgres_data:
+  redis_data:

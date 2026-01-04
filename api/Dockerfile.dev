@@ -1,0 +1,40 @@
+# Development image for the Rails API.
+# Production image is api/Dockerfile (Rails-generated, used by Kamal).
+
+ARG RUBY_VERSION=3.3.6
+FROM ruby:${RUBY_VERSION}
+
+ENV LANG=C.UTF-8 \
+    BUNDLE_PATH=/usr/local/bundle \
+    BUNDLE_BIN=/usr/local/bundle/bin \
+    PATH=/usr/local/bundle/bin:$PATH
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+        build-essential \
+        ca-certificates \
+        curl \
+        git \
+        libpq-dev \
+        libvips \
+        libyaml-dev \
+        pkg-config \
+        postgresql-client \
+        tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+RUN groupadd -g ${GROUP_ID} app && \
+    useradd -u ${USER_ID} -g ${GROUP_ID} -m -s /bin/bash app && \
+    mkdir -p /usr/local/bundle && \
+    chown -R app:app /usr/local/bundle
+
+USER app
+ENV HOME=/home/app
+
+RUN gem install bundler -v "~> 2.5" --no-document
+
+WORKDIR /app
+
+EXPOSE 3010

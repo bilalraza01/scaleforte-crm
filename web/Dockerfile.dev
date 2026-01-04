@@ -1,0 +1,29 @@
+# Development image for the Vite + React frontend.
+
+ARG NODE_VERSION=20
+FROM node:${NODE_VERSION}-bookworm-slim
+
+ENV LANG=C.UTF-8
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+        ca-certificates \
+        git && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+# node:20 image already has a 'node' user at UID 1000. Reuse it instead of
+# creating a duplicate; chown the workdir so npm install can write there.
+RUN if id -u 1000 >/dev/null 2>&1; then \
+      true; \
+    else \
+      groupadd -g ${GROUP_ID} app && useradd -u ${USER_ID} -g ${GROUP_ID} -m -s /bin/bash app; \
+    fi
+
+USER 1000:1000
+ENV HOME=/home/node
+
+WORKDIR /app
+
+EXPOSE 5173

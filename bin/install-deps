@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Install Ruby gems (api/) and JS deps (web/) via one-shot containers on the
+# Docker default bridge. Required because snap-Docker on this host doesn't NAT
+# user-defined bridges — compose containers can't reach rubygems / npm at
+# runtime, so we materialise dependencies into .docker-data/ via the working
+# default bridge and bind-mount them into the compose services.
+#
+#   bin/install-deps            # install both
+#   bin/install-deps gems       # api/ only
+#   bin/install-deps node       # web/ only
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+DOCKER_BIN="${DOCKER_BIN:-/snap/bin/docker}"
+WHAT="${1:-all}"
+
+mkdir -p .docker-data/api/bundle .docker-data/web/node_modules
+
+build_api_image() {
+    "$DOCKER_BIN" build -q -t scaleforte-crm-api:dev \
+        --build-arg USER_ID=1000 --build-arg GROUP_ID=1000 \
+        -f api/Dockerfile.dev api/ >/dev/null
+}
+
+build_web_image() {
+    "$DOCKER_BIN" build -q -t scaleforte-crm-web:dev \
+        --build-arg USER_ID=1000 --build-arg GROUP_ID=1000 \
+        -f web/Dockerfile.dev web/ >/dev/null
+}
+
+run_api_install() {
+    "$DOCKER_BIN" run --rm \
+        --network bridge \
+        -v "$PWD/api":/app -w /app \
+        -v "$PWD/.docker-data/api/bundle":/usr/local/bundle \
+        -u 1000:1000 \
+        scaleforte-crm-api:dev \
+        bash -c "bundle install"
+}
+
+run_web_install() {
+    "$DOCKER_BIN" run --rm \
+        --network bridge \
+        -v "$PWD/web":/app -w /app \
+        -v "$PWD/.docker-data/web/node_modules":/app/node_modules \
+        -u 1000:1000 \
+        scaleforte-crm-web:dev \
+        sh -c "npm install"
+}
+
+case "$WHAT" in
+    all|gems)
+        echo "→ build api dev image"
+        build_api_image
+        echo "→ bundle install (api)"
+        run_api_install
+        ;;
+esac
+
+case "$WHAT" in
+    all|node)
+        echo "→ build web dev image"
+        build_web_image
+        echo "→ npm install (web)"
+        run_web_install
+        ;;
+esac
+
+echo "✓ deps installed"

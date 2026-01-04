@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Bring up the full Docker stack: api + web + sidekiq + db + redis + mailcatcher.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [[ -f .env ]]; then
+    set -a; source .env; set +a
+fi
+
+DOCKER_BIN="${DOCKER_BIN:-/snap/bin/docker}"
+if ! command -v "$DOCKER_BIN" >/dev/null 2>&1; then
+    DOCKER_BIN=docker
+fi
+
+exec "$DOCKER_BIN" compose up "$@"
