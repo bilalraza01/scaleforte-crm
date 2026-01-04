@@ -17,6 +17,7 @@ gem "alba", "~> 3.5"
 # --- Authentication / authorization ---
 gem "devise", "~> 4.9"
 gem "devise-jwt", "~> 0.12"
+gem "devise_invitable", "~> 2.0"
 gem "pundit", "~> 2.3"
 
 # --- State machine (Brand: draft -> in_progress -> ready -> approved -> pushed) ---
