@@ -1,0 +1,71 @@
+name: CI · api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/ci-api.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/ci-api.yml"
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  lint:
+    name: Rubocop + Brakeman
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: api
+          bundler-cache: true
+      - run: bundle exec rubocop --parallel
+      - run: bundle exec brakeman --no-pager --quiet
+
+  test:
+    name: RSpec
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scaleforte
+          POSTGRES_PASSWORD: scaleforte
+          POSTGRES_DB: scaleforte_crm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U scaleforte"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://scaleforte:scaleforte@localhost:5432/scaleforte_crm_test
+      TEST_DATABASE_URL: postgres://scaleforte:scaleforte@localhost:5432/scaleforte_crm_test
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: api
+          bundler-cache: true
+      - run: bundle exec rails db:test:prepare
+      - run: bundle exec rspec
