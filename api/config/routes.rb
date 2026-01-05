@@ -28,6 +28,31 @@ Rails.application.routes.draw do
       resources :users, only: [:index, :show, :update] do
         member { patch :deactivate }
       end
+
+      resources :categories, only: [:index, :show, :create, :update] do
+        member { patch :archive }
+      end
+
+      resources :campaigns, only: [:index, :show, :create, :update] do
+        member { post :assign }
+      end
+
+      resources :brands, only: [:index, :show, :create, :update] do
+        collection do
+          post :claim_next
+        end
+        member do
+          post :mark_ready
+          post :approve
+          post :send_back
+          post :skip
+          post :reassign
+        end
+
+        resources :contacts, only: [:create, :update, :destroy]
+      end
+
+      get "contacts/dedupe", to: "contacts#dedupe"
     end
   end
 end
