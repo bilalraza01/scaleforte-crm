@@ -3,6 +3,7 @@ module Api
     module Auth
       class InvitationsController < Devise::InvitationsController
         include ActionController::Cookies
+        include JwtCookie
         include Pundit::Authorization
 
         respond_to :json

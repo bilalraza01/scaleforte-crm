@@ -1,6 +1,9 @@
 Rails.application.routes.draw do
   # Liveness probe — UptimeRobot, Kamal Proxy.
   get "up" => "rails/health#show", as: :rails_health_check
+  # Stub root route so devise_invitable's mailer view can resolve root_url
+  # (the API has no canonical front page; the React app lives elsewhere).
+  root to: "rails/health#show"
 
   # Devise mounted at the top level so the warden scope stays :user
   # (nesting devise_for inside namespace :api / :v1 prefixes the mapping

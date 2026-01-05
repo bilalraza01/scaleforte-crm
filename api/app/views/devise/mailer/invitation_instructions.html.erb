@@ -1,0 +1,21 @@
+<p>Hello <%= @resource.name.presence || @resource.email %>,</p>
+
+<p>
+  <%= @resource.invited_by ? @resource.invited_by.display_name : 'Someone' %>
+  has invited you to Scaleforte CRM.
+</p>
+
+<p>
+  Click the link below to set your password and finish setting up your account.
+  This invitation expires in <%= time_ago_in_words(@resource.invitation_due_at) %>.
+</p>
+
+<p>
+  <%
+    web_origin = ENV.fetch("WEB_ORIGIN", "http://localhost:5173")
+    accept_url = "#{web_origin}/accept-invitation/#{@token}"
+  %>
+  <%= link_to "Accept invitation", accept_url %>
+</p>
+
+<p style="color:#666;font-size:12px">If the link doesn't work, paste this URL into your browser: <%= accept_url %></p>

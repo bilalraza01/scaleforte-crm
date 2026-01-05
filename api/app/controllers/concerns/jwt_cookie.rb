@@ -9,7 +9,9 @@ module JwtCookie
   COOKIE_TTL  = 7.days
 
   included do
-    before_action :hoist_jwt_cookie_to_authorization_header
+    # prepend_ so the JWT lifts from cookie -> header BEFORE Devise's
+    # parent-class authenticate_inviter! / authenticate_user! callbacks run.
+    prepend_before_action :hoist_jwt_cookie_to_authorization_header
   end
 
   private
