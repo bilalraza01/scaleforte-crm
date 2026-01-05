@@ -18,6 +18,11 @@ export function AppShell() {
             <Link to="/dashboard" className="text-sm text-slate-700 hover:underline">
               Dashboard
             </Link>
+            {(user.role === "admin" || user.role === "manager") && (
+              <Link to="/users" className="text-sm text-slate-700 hover:underline">
+                Users
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">

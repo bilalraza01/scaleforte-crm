@@ -6,6 +6,8 @@ import { ProtectedRoute } from "@/auth/ProtectedRoute"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { AcceptInvitationPage } from "@/pages/AcceptInvitationPage"
+import { UsersPage } from "@/pages/UsersPage"
+import { InviteUserPage } from "@/pages/InviteUserPage"
 import { AppShell } from "@/components/AppShell"
 
 const queryClient = new QueryClient({
@@ -34,6 +36,22 @@ function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute roles={["admin", "manager"]}>
+                    <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users/invite"
+                element={
+                  <ProtectedRoute roles={["admin", "manager"]}>
+                    <InviteUserPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
