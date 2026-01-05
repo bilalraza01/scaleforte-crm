@@ -69,7 +69,7 @@ module Api
           AuditLog.record!(user: current_user, action: :brand_marked_ready, resource: @brand, request: request)
           render json: BrandResource.new(@brand).serialize
         else
-          render json: { error: "Brand is not ready to submit", missing_fields: missing_ready_fields }, status: :unprocessable_entity
+          render json: { error: "Brand is not ready to submit", missing_fields: @brand.missing_ready_fields }, status: :unprocessable_entity
         end
       end
 
@@ -118,14 +118,6 @@ module Api
         params.require(:brand).permit(:campaign_id, :amazon_seller_id, :brand_name, :business_name,
                                       :revenue, :country, :website, :asin, :amazon_link,
                                       :facebook_url, :instagram_url, :company_linkedin_url)
-      end
-
-      def missing_ready_fields
-        missing = []
-        missing << "brand_name" if @brand.brand_name.blank?
-        missing << "website"    if @brand.website.blank?
-        missing << "contacts"   if @brand.contacts.none? { |c| c.email.present? }
-        missing
       end
     end
   end

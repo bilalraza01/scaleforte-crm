@@ -49,7 +49,9 @@ Rails.application.routes.draw do
           post :reassign
         end
 
-        resources :contacts, only: [:create, :update, :destroy]
+        resources :contacts,           only: [:create, :update, :destroy]
+        resources :pain_points,        only: [:create, :update, :destroy]
+        resources :audit_screenshots,  only: [:create, :destroy]
       end
 
       get "contacts/dedupe", to: "contacts#dedupe"

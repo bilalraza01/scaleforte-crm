@@ -14,5 +14,14 @@ class BrandResource
   attribute :sdr_id       do |b| b.sdr_id       end
   attribute :sdr_name     do |b| b.sdr&.display_name end
 
-  many :contacts, resource: "ContactResource"
+  attribute :missing_ready_fields do |b|
+    b.missing_ready_fields
+  end
+
+  many :contacts,    resource: "ContactResource"
+  many :pain_points, resource: "PainPointResource"
+
+  attribute :audit_screenshots do |b|
+    AuditScreenshotResource.new(b.audit_screenshots.includes(:blob).to_a).to_h
+  end
 end

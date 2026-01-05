@@ -4,8 +4,9 @@ class Brand < ApplicationRecord
   belongs_to :campaign
   belongs_to :sdr, class_name: "User", optional: true
 
-  has_many :contacts, dependent: :destroy
-  # has_many :pain_points, has_many_attached :audit_screenshots — Phase 1 Week 3.
+  has_many :contacts,    dependent: :destroy
+  has_many :pain_points, dependent: :destroy
+  has_many_attached :audit_screenshots
 
   has_paper_trail
 
@@ -57,12 +58,23 @@ class Brand < ApplicationRecord
     end
   end
 
-  # FR-3.6 — required fields to leave Draft / In Progress for Ready.
-  # Audit screenshot + pain-point requirements land in Phase 1 Week 3.
+  # FR-3.6 + FR-5.4 — required to leave Draft / In Progress for Ready.
   def ready_to_submit?
     brand_name.present? &&
       website.present? &&
-      contacts.any? { |c| c.email.present? }
+      contacts.any? { |c| c.email.present? } &&
+      audit_screenshots.attached? &&
+      pain_points.any?
+  end
+
+  def missing_ready_fields
+    missing = []
+    missing << "brand_name" if brand_name.blank?
+    missing << "website"    if website.blank?
+    missing << "contact_with_email" if contacts.none? { |c| c.email.present? }
+    missing << "audit_screenshot"   unless audit_screenshots.attached?
+    missing << "pain_point"         if pain_points.none?
+    missing
   end
 
   def primary_contact
