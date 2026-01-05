@@ -6,22 +6,25 @@ export function AppShell() {
   const navigate = useNavigate()
 
   if (!user) return null
+  const isAdmin = user.role === "admin"
+  const isManager = user.role === "manager"
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <nav className="bg-white shadow">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link to="/dashboard" className="font-bold">
-              Scaleforte CRM
-            </Link>
-            <Link to="/dashboard" className="text-sm text-slate-700 hover:underline">
-              Dashboard
-            </Link>
-            {(user.role === "admin" || user.role === "manager") && (
-              <Link to="/users" className="text-sm text-slate-700 hover:underline">
-                Users
-              </Link>
+            <Link to="/dashboard" className="font-bold">Scaleforte CRM</Link>
+            <Link to="/dashboard" className="text-sm text-slate-700 hover:underline">Dashboard</Link>
+            <Link to="/worklist" className="text-sm text-slate-700 hover:underline">Worklist</Link>
+            {(isAdmin || isManager) && (
+              <Link to="/users" className="text-sm text-slate-700 hover:underline">Users</Link>
+            )}
+            {isAdmin && (
+              <>
+                <Link to="/categories" className="text-sm text-slate-700 hover:underline">Categories</Link>
+                <Link to="/campaigns" className="text-sm text-slate-700 hover:underline">Campaigns</Link>
+              </>
             )}
           </div>
           <div className="flex items-center gap-3 text-sm">

@@ -8,6 +8,10 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { AcceptInvitationPage } from "@/pages/AcceptInvitationPage"
 import { UsersPage } from "@/pages/UsersPage"
 import { InviteUserPage } from "@/pages/InviteUserPage"
+import { CategoriesPage } from "@/pages/CategoriesPage"
+import { CampaignsPage } from "@/pages/CampaignsPage"
+import { WorklistPage } from "@/pages/WorklistPage"
+import { BrandEditPage } from "@/pages/BrandEditPage"
 import { AppShell } from "@/components/AppShell"
 
 const queryClient = new QueryClient({
@@ -36,6 +40,8 @@ function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/worklist" element={<WorklistPage />} />
+              <Route path="/brands/:id" element={<BrandEditPage />} />
               <Route
                 path="/users"
                 element={
@@ -49,6 +55,22 @@ function App() {
                 element={
                   <ProtectedRoute roles={["admin", "manager"]}>
                     <InviteUserPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/categories"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <CategoriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/campaigns"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <CampaignsPage />
                   </ProtectedRoute>
                 }
               />
