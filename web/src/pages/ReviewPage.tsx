@@ -1,42 +1,53 @@
 import { Link } from "react-router-dom"
 import { useBrands } from "@/api/brands"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Card } from "@/components/ui/Card"
+import { Badge, statusTone } from "@/components/ui/Badge"
+import { ArrowRight, Inbox } from "lucide-react"
 
 export function ReviewPage() {
   const { data: brands, isLoading } = useBrands({ status: "ready" })
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Awaiting review</h1>
-      <p className="text-slate-600 text-sm">
-        Brands marked Ready by an SDR, waiting for Manager / Admin to approve or send back.
-      </p>
+    <div className="px-8 py-8 max-w-5xl mx-auto">
+      <PageHeader
+        title="Awaiting review"
+        subtitle="Brands marked Ready by an SDR, waiting for Manager / Admin to approve or send back."
+      />
 
       {isLoading && <p className="text-slate-500">Loading…</p>}
 
       {brands && brands.length === 0 && (
-        <p className="text-slate-400 text-sm">Nothing in the queue right now.</p>
+        <Card className="p-10 text-center">
+          <Inbox className="mx-auto text-slate-300 mb-3" size={32} />
+          <p className="text-slate-500 text-sm">Nothing in the queue right now.</p>
+        </Card>
       )}
 
       {brands && brands.length > 0 && (
-        <div className="bg-white shadow rounded divide-y">
+        <Card className="divide-y divide-slate-100">
           {brands.map((b) => (
             <Link
               key={b.id}
               to={`/brands/${b.id}`}
-              className="block px-4 py-3 hover:bg-slate-50 flex justify-between items-center"
+              className="block px-5 py-4 hover:bg-slate-50 transition-colors group"
             >
-              <div>
-                <div className="font-medium">{b.brand_name || b.amazon_seller_id}</div>
-                <div className="text-xs text-slate-500">
-                  Sourced by {b.sdr_name || "—"} · {b.contacts.length} contact{b.contacts.length === 1 ? "" : "s"}
-                  · {b.pain_points.length} pain point{b.pain_points.length === 1 ? "" : "s"}
-                  · {b.audit_screenshots.length} screenshot{b.audit_screenshots.length === 1 ? "" : "s"}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-slate-900">{b.brand_name || b.amazon_seller_id}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    Sourced by <span className="text-slate-700">{b.sdr_name || "—"}</span>
+                    {" · "} {b.contacts.length} contact{b.contacts.length === 1 ? "" : "s"}
+                    {" · "} {b.pain_points.length} pain point{b.pain_points.length === 1 ? "" : "s"}
+                    {" · "} {b.audit_screenshots.length} screenshot{b.audit_screenshots.length === 1 ? "" : "s"}
+                  </div>
                 </div>
+                <Badge tone={statusTone(b.status)}>{b.status}</Badge>
+                <ArrowRight size={14} className="text-slate-300 group-hover:text-slate-500" />
               </div>
-              <span className="font-mono text-xs px-2 py-1 bg-slate-100 rounded">{b.status}</span>
             </Link>
           ))}
-        </div>
+        </Card>
       )}
     </div>
   )

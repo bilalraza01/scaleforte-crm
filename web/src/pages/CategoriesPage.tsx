@@ -3,6 +3,13 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useArchiveCategory, useCategories, useCreateCategory } from "@/api/categories"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Card, CardHeader, CardBody } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
+import { Input, Label, FieldError } from "@/components/ui/Input"
+import { Badge } from "@/components/ui/Badge"
+import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
+import { Plus } from "lucide-react"
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
@@ -25,71 +32,69 @@ export function CategoriesPage() {
     try {
       await create.mutateAsync({ name: input.name, amazon_url_pattern: input.amazon_url_pattern || null })
       reset()
-    } catch (e) {
+    } catch {
       setServerError("Could not create category")
     }
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Categories</h1>
+    <div className="px-8 py-8 max-w-5xl mx-auto">
+      <PageHeader title="Categories" subtitle="Amazon categories assigned to monthly campaigns." />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white shadow rounded p-4 flex gap-2 items-start">
-        <div className="flex-1">
-          <input placeholder="Category name (e.g. Health & Household)" {...register("name")} className="w-full border rounded px-2 py-1.5" />
-          {errors.name && <p className="text-rose-600 text-xs mt-1">{errors.name.message}</p>}
-        </div>
-        <div className="flex-1">
-          <input placeholder="Amazon URL pattern (optional)" {...register("amazon_url_pattern")} className="w-full border rounded px-2 py-1.5" />
-        </div>
-        <button type="submit" disabled={create.isPending} className="px-3 py-2 bg-slate-900 text-white rounded hover:bg-slate-700 disabled:opacity-50">
-          {create.isPending ? "Adding…" : "Add"}
-        </button>
-      </form>
-
-      {serverError && <p className="text-rose-600 text-sm">{serverError}</p>}
+      <Card className="mb-6">
+        <CardHeader title="Add a category" />
+        <CardBody>
+          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="md:col-span-1">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" placeholder="Health & Household" {...register("name")} />
+              <FieldError>{errors.name?.message}</FieldError>
+            </div>
+            <div className="md:col-span-1">
+              <Label htmlFor="pattern">Amazon URL pattern (optional)</Label>
+              <Input id="pattern" placeholder="amazon.com/s?k=…" {...register("amazon_url_pattern")} />
+            </div>
+            <Button type="submit" disabled={create.isPending}>
+              <Plus size={14} />
+              {create.isPending ? "Adding…" : "Add category"}
+            </Button>
+          </form>
+          {serverError && <p className="text-rose-600 text-sm mt-2">{serverError}</p>}
+        </CardBody>
+      </Card>
 
       {isLoading ? (
         <p className="text-slate-500">Loading…</p>
       ) : (
-        <table className="w-full bg-white shadow rounded">
-          <thead className="text-left bg-slate-100">
-            <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">URL pattern</th>
-              <th className="p-3"># Campaigns</th>
-              <th className="p-3">Status</th>
-              <th className="p-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(categories ?? []).map((c) => (
-              <tr key={c.id} className="border-t">
-                <td className="p-3 font-medium">{c.name}</td>
-                <td className="p-3 text-slate-600 font-mono text-xs">{c.amazon_url_pattern ?? "—"}</td>
-                <td className="p-3">{c.campaigns_count}</td>
-                <td className="p-3">
-                  {c.active ? (
-                    <span className="text-emerald-700 text-xs">active</span>
-                  ) : (
-                    <span className="text-slate-400 text-xs">archived</span>
-                  )}
-                </td>
-                <td className="p-3 text-right">
-                  {c.active && (
-                    <button
-                      onClick={() => confirm(`Archive ${c.name}?`) && archive.mutate(c.id)}
-                      className="text-rose-600 text-sm hover:underline"
-                      disabled={archive.isPending}
-                    >
-                      Archive
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Name</TH><TH>URL pattern</TH><TH>Campaigns</TH><TH>Status</TH><TH></TH>
+              </TR>
+            </THead>
+            <tbody>
+              {(categories ?? []).map((c) => (
+                <TR key={c.id}>
+                  <TD className="font-medium text-slate-900">{c.name}</TD>
+                  <TD className="text-slate-500 font-mono text-xs">{c.amazon_url_pattern ?? "—"}</TD>
+                  <TD className="tabular-nums">{c.campaigns_count}</TD>
+                  <TD>{c.active ? <Badge tone="emerald">active</Badge> : <Badge tone="slate">archived</Badge>}</TD>
+                  <TD className="text-right">
+                    {c.active && (
+                      <Button
+                        variant="ghost" size="sm" disabled={archive.isPending}
+                        onClick={() => confirm(`Archive ${c.name}?`) && archive.mutate(c.id)}
+                      >
+                        Archive
+                      </Button>
+                    )}
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
       )}
     </div>
   )

@@ -26,6 +26,9 @@ gem "aasm", "~> 5.5"
 # --- Background jobs ---
 gem "sidekiq", "~> 7.3"
 gem "redis", "~> 5.3"
+# connection_pool 3.x broke Sidekiq 7's scheduler (timed_stack#pop signature change).
+# Pin to 2.x until Sidekiq 8.
+gem "connection_pool", "~> 2.4"
 
 # --- File uploads (audit screenshots) ---
 gem "image_processing", "~> 1.13"
