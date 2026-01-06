@@ -7,6 +7,7 @@ import type { AuditScreenshot } from "@/types"
 import { cn } from "@/lib/utils"
 
 const MAX_BYTES = 5 * 1024 * 1024
+const MAX_PER_BRAND = 5
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
 export function AuditScreenshotsPanel({
@@ -24,10 +25,17 @@ export function AuditScreenshotsPanel({
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const remaining = Math.max(0, MAX_PER_BRAND - screenshots.length)
+  const atCap = remaining === 0
+
   const handleFiles = async (files: FileList | null) => {
     setError(null)
     if (!files) return
-    for (const file of Array.from(files)) {
+    const incoming = Array.from(files)
+    if (incoming.length > remaining) {
+      setError(`Can only attach ${remaining} more (${MAX_PER_BRAND} max per brand). Extras were ignored.`)
+    }
+    for (const file of incoming.slice(0, remaining)) {
       if (!ACCEPTED_TYPES.includes(file.type)) {
         setError(`${file.name}: only JPG/PNG/WebP allowed`)
         continue
@@ -47,34 +55,44 @@ export function AuditScreenshotsPanel({
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragOver(false)
-    if (canEdit) void handleFiles(e.dataTransfer.files)
+    if (canEdit && !atCap) void handleFiles(e.dataTransfer.files)
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-slate-600">Audit screenshots ({screenshots.length})</h3>
+        <h3 className="text-sm font-semibold text-slate-600">
+          Audit screenshots ({screenshots.length} / {MAX_PER_BRAND})
+        </h3>
       </div>
 
       {error && <div className="bg-rose-100 text-rose-900 text-sm p-2 rounded mb-2">{error}</div>}
 
       {canEdit && (
         <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragOver={(e) => { e.preventDefault(); if (!atCap) setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => { if (!atCap) inputRef.current?.click() }}
           className={cn(
-            "border-2 border-dashed rounded p-4 text-center text-sm cursor-pointer transition-colors",
-            dragOver ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-slate-50 hover:bg-slate-100"
+            "border-2 border-dashed rounded p-4 text-center text-sm transition-colors",
+            atCap
+              ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+              : "cursor-pointer " + (dragOver ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-slate-50 hover:bg-slate-100")
           )}
+          aria-disabled={atCap}
         >
-          {upload.isPending ? "Uploading…" : "Drop a screenshot here, or click to pick a file (JPG/PNG/WebP, ≤ 5 MB)"}
+          {atCap
+            ? `Limit reached — delete one to add another (max ${MAX_PER_BRAND} per brand).`
+            : upload.isPending
+              ? "Uploading…"
+              : `Drop a screenshot here, or click to pick a file (JPG/PNG/WebP, ≤ 5 MB). ${remaining} slot${remaining === 1 ? "" : "s"} left.`}
           <input
             ref={inputRef}
             type="file"
             accept={ACCEPTED_TYPES.join(",")}
             multiple
+            disabled={atCap}
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />

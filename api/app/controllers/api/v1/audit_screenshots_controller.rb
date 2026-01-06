@@ -2,6 +2,7 @@ module Api
   module V1
     class AuditScreenshotsController < ApplicationController
       MAX_BYTES = 5 * 1024 * 1024
+      MAX_PER_BRAND = 5
       ACCEPTED_TYPES = %w[image/jpeg image/png image/webp].freeze
 
       before_action :set_brand
@@ -12,6 +13,11 @@ module Api
       # uploads to S3 (configured in storage.yml + initializer).
       def create
         authorize @brand, :update?, policy_class: BrandPolicy
+
+        if @brand.audit_screenshots.count >= MAX_PER_BRAND
+          return render json: { error: "Limit of #{MAX_PER_BRAND} audit screenshots per brand reached" },
+                        status: :unprocessable_entity
+        end
 
         file = params.require(:file)
         if file.size > MAX_BYTES
