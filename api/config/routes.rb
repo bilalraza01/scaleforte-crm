@@ -38,9 +38,6 @@ Rails.application.routes.draw do
       end
 
       resources :brands, only: [:index, :show, :create, :update] do
-        collection do
-          post :claim_next
-        end
         member do
           post :mark_ready
           post :approve

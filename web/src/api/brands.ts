@@ -48,18 +48,6 @@ export function useUpdateBrand(id: number) {
   })
 }
 
-export function useClaimNextBrand() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (campaignId?: number) => {
-      const { data } = await http.post<Brand>("/api/v1/brands/claim_next",
-        campaignId ? { campaign_id: campaignId } : {})
-      return data
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: listKey }),
-  })
-}
-
 export function useMarkBrandReady(id: number) {
   const qc = useQueryClient()
   return useMutation({

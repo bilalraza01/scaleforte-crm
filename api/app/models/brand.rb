@@ -23,7 +23,6 @@ class Brand < ApplicationRecord
             uniqueness: { scope: :campaign_id, message: "already exists in this campaign" }
   validates :skip_reason, presence: true, if: -> { skipped_status? }
 
-  scope :unclaimed,       -> { where(sdr_id: nil) }
   scope :for_sdr,         ->(user) { where(sdr_id: user.id) }
   scope :awaiting_review, -> { where(status: :ready) }
 

@@ -5,7 +5,6 @@ class BrandPolicy < ApplicationPolicy
   def update?  = visible?
   def destroy? = user.admin_role? || (user.manager_role? && manages_brand?)
 
-  def claim_next? = user.sdr_role?
   def mark_ready? = visible? && (record.draft_status? || record.in_progress_status?)
   def approve?    = user.admin_role? || (user.manager_role? && manages_brand?)
   def send_back?  = approve?

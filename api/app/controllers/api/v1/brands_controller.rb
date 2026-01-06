@@ -19,8 +19,12 @@ module Api
       def create
         authorize Brand
         brand = Brand.new(brand_params)
+        # SDRs always own the brands they create. Admin/Manager can pass an
+        # explicit sdr_id (also permitted in brand_params) to assign on behalf.
+        brand.sdr_id ||= current_user.id if current_user.sdr_role?
         if brand.save
-          AuditLog.record!(user: current_user, action: :brand_created, resource: brand, request: request)
+          AuditLog.record!(user: current_user, action: :brand_created, resource: brand, request: request,
+                           metadata: { sdr_id: brand.sdr_id })
           render json: BrandResource.new(brand).serialize, status: :created
         else
           render json: { errors: brand.errors }, status: :unprocessable_entity
@@ -36,30 +40,6 @@ module Api
           render json: BrandResource.new(@brand).serialize
         else
           render json: { errors: @brand.errors }, status: :unprocessable_entity
-        end
-      end
-
-      # POST /api/v1/brands/claim_next — atomically claim the next unclaimed brand
-      # for the current SDR within a campaign they're assigned to (FR-3.3).
-      def claim_next
-        authorize Brand, :claim_next?
-
-        result = Brand.transaction do
-          campaign_id = params[:campaign_id] || current_user.campaign_assignments.pick(:campaign_id)
-          next nil unless campaign_id
-
-          brand = Brand.unclaimed.where(campaign_id: campaign_id).order(:id).lock("FOR UPDATE SKIP LOCKED").first
-          if brand
-            brand.update!(sdr_id: current_user.id)
-            brand
-          end
-        end
-
-        if result
-          AuditLog.record!(user: current_user, action: :brand_claimed, resource: result, request: request)
-          render json: BrandResource.new(result).serialize
-        else
-          render json: { error: "No unclaimed brands available" }, status: :not_found
         end
       end
 
@@ -115,9 +95,13 @@ module Api
       end
 
       def brand_params
-        params.require(:brand).permit(:campaign_id, :amazon_seller_id, :brand_name, :business_name,
-                                      :revenue, :country, :website, :asin, :amazon_link,
-                                      :facebook_url, :instagram_url, :company_linkedin_url)
+        permitted = [:campaign_id, :amazon_seller_id, :brand_name, :business_name,
+                     :revenue, :country, :website, :asin, :amazon_link,
+                     :facebook_url, :instagram_url, :company_linkedin_url]
+        # Only Admin/Manager can hand a brand to a different SDR; SDR creations
+        # are always self-owned (forced server-side in #create).
+        permitted << :sdr_id if current_user.admin_role? || current_user.manager_role?
+        params.require(:brand).permit(permitted)
       end
     end
   end
