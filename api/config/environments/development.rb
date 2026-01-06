@@ -30,8 +30,10 @@ Rails.application.configure do
     config.cache_store = :null_store
   end
 
-  # Store uploaded files on the local file system (see config/storage.yml for options).
-  config.active_storage.service = :local
+  # Store uploaded files on the local file system by default; switch to R2
+  # automatically when R2_BUCKET is set so we can test the Smartlead push
+  # against real public CDN URLs without redeploying.
+  config.active_storage.service = ENV["R2_BUCKET"].present? ? :r2 : :local
 
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
@@ -44,8 +46,10 @@ Rails.application.configure do
     address: ENV.fetch("SMTP_HOST", "127.0.0.1"),
     port:    ENV.fetch("SMTP_PORT", "1025").to_i
   }
+  # Mailer links should point at the React app (Vite dev server).
   config.action_mailer.default_url_options = { host: "localhost", port: 5173 }
-  Rails.application.routes.default_url_options = { host: "localhost", port: 5173 }
+  # Backend-generated URLs (Active Storage blob redirects, etc.) point at the API itself.
+  Rails.application.routes.default_url_options = { host: "localhost", port: 3010 }
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

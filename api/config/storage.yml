@@ -6,29 +6,27 @@ local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
 
-# Use bin/rails credentials:edit to set the AWS secrets (as aws:access_key_id|secret_access_key)
-# amazon:
-#   service: S3
-#   access_key_id: <%= Rails.application.credentials.dig(:aws, :access_key_id) %>
-#   secret_access_key: <%= Rails.application.credentials.dig(:aws, :secret_access_key) %>
-#   region: us-east-1
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# Remember not to checkin your GCS keyfile to a repository
-# google:
-#   service: GCS
-#   project: your_project
-#   credentials: <%= Rails.root.join("path/to/gcs.keyfile") %>
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# Use bin/rails credentials:edit to set the Azure Storage secret (as azure_storage:storage_access_key)
-# microsoft:
-#   service: AzureStorage
-#   storage_account_name: your_account_name
-#   storage_access_key: <%= Rails.application.credentials.dig(:azure_storage, :storage_access_key) %>
-#   container: your_container_name-<%= Rails.env %>
-
-# mirror:
-#   service: Mirror
-#   primary: local
-#   mirrors: [ amazon, google, microsoft ]
+# Cloudflare R2 — S3-compatible. Used in prod (and in dev when R2_BUCKET is set)
+# so audit-screenshot URLs we hand to Smartlead are publicly fetchable by
+# recipients without going through the Rails app.
+#
+# Required env:
+#   R2_ENDPOINT          https://<account-id>.r2.cloudflarestorage.com
+#   R2_ACCESS_KEY_ID     R2 API token access key
+#   R2_SECRET_ACCESS_KEY R2 API token secret
+#   R2_BUCKET            bucket name (e.g. scaleforte-audits)
+#   R2_PUBLIC_URL_HOST   public host (https://pub-<id>.r2.dev or https://audits.scaleforte.com)
+#
+# `public: true` makes Active Storage return the direct CDN URL via
+# S3Service#public_url, which we override in
+# config/initializers/active_storage_r2.rb to point at R2_PUBLIC_URL_HOST,
+# since R2 serves public buckets from a different hostname than the S3 API endpoint.
+r2:
+  service: S3
+  endpoint:          <%= ENV["R2_ENDPOINT"] %>
+  access_key_id:     <%= ENV["R2_ACCESS_KEY_ID"] %>
+  secret_access_key: <%= ENV["R2_SECRET_ACCESS_KEY"] %>
+  region: auto
+  bucket: <%= ENV["R2_BUCKET"] %>
+  public: true
+  force_path_style: true
