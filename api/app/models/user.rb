@@ -5,13 +5,21 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable, :timeoutable,
          :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
 
-  enum role: { admin: 0, manager: 1, sdr: 2 }, _suffix: :role
+  # Positional enum — only ever append values. Reordering shifts existing
+  # role bytes silently and would mis-classify every user in the DB.
+  enum role: {
+    admin: 0, manager: 1, sdr: 2, onboarder: 3, accountant: 4
+  }, _suffix: :role
 
   belongs_to :manager, class_name: "User", optional: true
   has_many :sdrs, class_name: "User", foreign_key: :manager_id, dependent: :nullify
   has_many :campaign_assignments, foreign_key: :sdr_id, dependent: :destroy
   has_many :campaigns, through: :campaign_assignments
   has_many :sourced_brands, class_name: "Brand", foreign_key: :sdr_id, dependent: :nullify
+  has_many :category_assignments, dependent: :destroy
+  has_many :assigned_categories,  through: :category_assignments, source: :category
+  has_many :created_subcategories, class_name: "Subcategory",
+           foreign_key: :created_by_user_id, dependent: :nullify
 
   validates :name, presence: true
   validate  :manager_must_be_a_manager
