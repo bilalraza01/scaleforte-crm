@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_01_015313) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -111,6 +111,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_015313) do
     t.index ["name"], name: "index_categories_on_name", unique: true
   end
 
+  create_table "contact_engagement_summaries", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.bigint "smartlead_lead_id"
+    t.datetime "sent_at"
+    t.datetime "last_opened_at"
+    t.integer "open_count", default: 0, null: false
+    t.datetime "last_replied_at"
+    t.integer "reply_count", default: 0, null: false
+    t.datetime "last_clicked_at"
+    t.integer "click_count", default: 0, null: false
+    t.datetime "bounced_at"
+    t.datetime "unsubscribed_at"
+    t.integer "current_status", default: 0, null: false
+    t.integer "reply_classification"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_id"], name: "index_contact_engagement_summaries_on_contact_id", unique: true
+    t.index ["current_status"], name: "index_contact_engagement_summaries_on_current_status"
+    t.index ["smartlead_lead_id"], name: "index_contact_engagement_summaries_on_smartlead_lead_id"
+  end
+
   create_table "contacts", force: :cascade do |t|
     t.bigint "brand_id", null: false
     t.string "name"
@@ -126,6 +147,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_015313) do
     t.index ["brand_id"], name: "index_contacts_one_primary_per_brand", unique: true, where: "(is_primary = true)"
     t.index ["email"], name: "index_contacts_on_email"
     t.index ["smartlead_lead_id"], name: "index_contacts_on_smartlead_lead_id", unique: true, where: "(smartlead_lead_id IS NOT NULL)"
+  end
+
+  create_table "engagement_events", force: :cascade do |t|
+    t.string "smartlead_event_id", null: false
+    t.bigint "smartlead_lead_id"
+    t.bigint "smartlead_campaign_id"
+    t.integer "event_type", null: false
+    t.datetime "occurred_at"
+    t.datetime "received_at", null: false
+    t.datetime "processed_at"
+    t.bigint "contact_id"
+    t.string "reply_subject"
+    t.text "reply_body"
+    t.jsonb "raw_payload", default: {}, null: false
+    t.boolean "unmatched", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_id"], name: "index_engagement_events_on_contact_id"
+    t.index ["event_type", "occurred_at"], name: "index_engagement_events_on_event_type_and_occurred_at"
+    t.index ["smartlead_event_id"], name: "index_engagement_events_on_smartlead_event_id", unique: true
+    t.index ["smartlead_lead_id"], name: "index_engagement_events_on_smartlead_lead_id"
+    t.index ["unmatched"], name: "index_engagement_events_on_unmatched"
   end
 
   create_table "jwt_denylists", force: :cascade do |t|
@@ -145,6 +188,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_015313) do
     t.datetime "updated_at", null: false
     t.index ["brand_id", "display_order"], name: "index_pain_points_on_brand_id_and_display_order"
     t.index ["brand_id"], name: "index_pain_points_on_brand_id"
+  end
+
+  create_table "push_receipts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "smartlead_campaign_id", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "total_count", default: 0, null: false
+    t.integer "success_count", default: 0, null: false
+    t.integer "failure_count", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.jsonb "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_push_receipts_on_created_at"
+    t.index ["status"], name: "index_push_receipts_on_status"
+    t.index ["user_id"], name: "index_push_receipts_on_user_id"
+  end
+
+  create_table "smartlead_configs", force: :cascade do |t|
+    t.text "api_key"
+    t.text "webhook_secret"
+    t.datetime "last_test_at"
+    t.boolean "last_test_success"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "users", force: :cascade do |t|
@@ -195,7 +264,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_015313) do
   add_foreign_key "campaign_assignments", "campaigns"
   add_foreign_key "campaign_assignments", "users", column: "sdr_id"
   add_foreign_key "campaigns", "categories"
+  add_foreign_key "contact_engagement_summaries", "contacts"
   add_foreign_key "contacts", "brands"
+  add_foreign_key "engagement_events", "contacts"
   add_foreign_key "pain_points", "brands"
+  add_foreign_key "push_receipts", "users"
   add_foreign_key "users", "users", column: "manager_id"
 end

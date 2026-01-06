@@ -55,6 +55,13 @@ Rails.application.routes.draw do
       end
 
       get "contacts/dedupe", to: "contacts#dedupe"
+
+      # --- Phase 2: Smartlead integration ---
+      resource :smartlead_config, only: [:show, :update] do
+        post :test, on: :collection
+      end
+
+      resources :pushes, only: [:index, :show, :create]
     end
   end
 end

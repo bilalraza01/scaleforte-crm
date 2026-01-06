@@ -69,6 +69,9 @@ services:
       SMTP_HOST: 127.0.0.1
       SMTP_PORT: "1025"
       PORT: "3010"
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: 43N5q4btuWSGFxBykxd5TtJcWP3hXkqW
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: OtOskgimAyMdtcySYb7iTp0iy0GrdShG
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: x7hCy4jjGEUD9k2yd1QURbtH5FxmCdSI
     depends_on:
       db:
         condition: service_healthy
@@ -94,6 +97,9 @@ services:
       DATABASE_URL: postgres://scaleforte:scaleforte@127.0.0.1:5435/scaleforte_crm_development
       REDIS_URL: redis://127.0.0.1:6381/0
       RAILS_ENV: development
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: 43N5q4btuWSGFxBykxd5TtJcWP3hXkqW
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: OtOskgimAyMdtcySYb7iTp0iy0GrdShG
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: x7hCy4jjGEUD9k2yd1QURbtH5FxmCdSI
     depends_on:
       db:
         condition: service_healthy
