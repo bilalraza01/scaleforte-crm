@@ -6,6 +6,13 @@ import { useCampaigns, useCreateCampaign, useAssignSdrToCampaign } from "@/api/c
 import { useCategories } from "@/api/categories"
 import { useUsers } from "@/api/users"
 import type { Campaign } from "@/types"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Card, CardHeader, CardBody } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
+import { Input, Select, Label, FieldError } from "@/components/ui/Input"
+import { Badge } from "@/components/ui/Badge"
+import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
+import { CalendarPlus, UserPlus2, X } from "lucide-react"
 
 const schema = z.object({
   category_id: z.coerce.number().int().positive(),
@@ -34,60 +41,71 @@ export function CampaignsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Campaigns</h1>
+    <div className="px-8 py-8 max-w-6xl mx-auto">
+      <PageHeader title="Campaigns" subtitle="Monthly category × SDR assignments." />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white shadow rounded p-4 grid grid-cols-5 gap-2 items-end">
-        <div className="col-span-2">
-          <label className="block text-xs font-semibold mb-1">Category</label>
-          <select {...register("category_id")} className="w-full border rounded px-2 py-1.5">
-            <option value="">— pick —</option>
-            {(categories ?? []).filter((c) => c.active).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          {errors.category_id && <p className="text-rose-600 text-xs mt-1">required</p>}
-        </div>
-        <div>
-          <label className="block text-xs font-semibold mb-1">Month</label>
-          <input type="number" min={1} max={12} {...register("month")} className="w-full border rounded px-2 py-1.5" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold mb-1">Year</label>
-          <input type="number" min={2025} max={2099} {...register("year")} className="w-full border rounded px-2 py-1.5" />
-        </div>
-        <button type="submit" disabled={create.isPending} className="bg-slate-900 text-white rounded py-2 hover:bg-slate-700 disabled:opacity-50">
-          {create.isPending ? "Creating…" : "Create campaign"}
-        </button>
-      </form>
+      <Card className="mb-6">
+        <CardHeader title="Create campaign" />
+        <CardBody>
+          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div className="md:col-span-2">
+              <Label>Category</Label>
+              <Select {...register("category_id")}>
+                <option value="">— pick —</option>
+                {(categories ?? []).filter((c) => c.active).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+              <FieldError>{errors.category_id && "required"}</FieldError>
+            </div>
+            <div>
+              <Label>Month</Label>
+              <Input type="number" min={1} max={12} {...register("month")} />
+            </div>
+            <div>
+              <Label>Year</Label>
+              <Input type="number" min={2025} max={2099} {...register("year")} />
+            </div>
+            <Button type="submit" disabled={create.isPending}>
+              <CalendarPlus size={14} />
+              {create.isPending ? "Creating…" : "Create"}
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
 
       {isLoading ? (
         <p className="text-slate-500">Loading…</p>
       ) : (
-        <table className="w-full bg-white shadow rounded">
-          <thead className="text-left bg-slate-100">
-            <tr>
-              <th className="p-3">Campaign</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">SDRs</th>
-              <th className="p-3">Brands</th>
-              <th className="p-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(campaigns ?? []).map((c) => (
-              <tr key={c.id} className="border-t">
-                <td className="p-3 font-medium">{c.label}</td>
-                <td className="p-3"><span className="font-mono text-xs">{c.status}</span></td>
-                <td className="p-3">{c.assignments_count}</td>
-                <td className="p-3">{c.brands_count}</td>
-                <td className="p-3 text-right">
-                  <button onClick={() => setAssigningTo(c)} className="text-sm text-blue-600 hover:underline">Assign SDR</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Card>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Campaign</TH><TH>Status</TH><TH>SDRs</TH><TH>Brands</TH><TH></TH>
+              </TR>
+            </THead>
+            <tbody>
+              {(campaigns ?? []).map((c) => (
+                <TR key={c.id}>
+                  <TD className="font-medium text-slate-900">{c.label}</TD>
+                  <TD>
+                    <Badge tone={c.status === "active" ? "emerald" : c.status === "closed" ? "slate" : "amber"}>
+                      {c.status}
+                    </Badge>
+                  </TD>
+                  <TD className="tabular-nums">{c.assignments_count}</TD>
+                  <TD className="tabular-nums">{c.brands_count}</TD>
+                  <TD className="text-right">
+                    <Button variant="secondary" size="sm" onClick={() => setAssigningTo(c)}>
+                      <UserPlus2 size={14} />
+                      Assign SDR
+                    </Button>
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
       )}
 
       {assigningTo && (
@@ -112,40 +130,44 @@ function AssignModal({ campaign, sdrs, onClose }: {
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-6" onClick={onClose}>
-      <div className="bg-white rounded shadow-lg p-6 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">Assign SDR to {campaign.label}</h2>
-        {error && <div className="bg-rose-100 text-rose-900 text-sm p-2 rounded">{error}</div>}
-        <div>
-          <label className="block text-xs font-semibold mb-1">SDR</label>
-          <select value={sdrId} onChange={(e) => setSdrId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full border rounded px-2 py-1.5">
-            <option value="">— pick an SDR —</option>
-            {sdrs.map((s) => <option key={s.id} value={s.id}>{s.name || s.email}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold mb-1">Target brand count</label>
-          <input type="number" min={0} value={target} onChange={(e) => setTarget(Number(e.target.value))} className="w-full border rounded px-2 py-1.5" />
-        </div>
-        <div className="flex gap-2 justify-end pt-2">
-          <button onClick={onClose} className="px-3 py-2 text-slate-600 hover:underline">Cancel</button>
-          <button
-            onClick={async () => {
-              if (sdrId === "") return setError("Pick an SDR")
-              try {
-                await assign.mutateAsync({ sdr_id: Number(sdrId), target_count: target })
-                onClose()
-              } catch {
-                setError("Could not assign — already assigned?")
-              }
-            }}
-            disabled={assign.isPending}
-            className="px-3 py-2 bg-slate-900 text-white rounded hover:bg-slate-700 disabled:opacity-50"
-          >
-            {assign.isPending ? "Saving…" : "Assign"}
-          </button>
-        </div>
-      </div>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={onClose}>
+      <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <CardHeader
+          title={`Assign SDR to ${campaign.label}`}
+          action={<button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>}
+        />
+        <CardBody className="space-y-3">
+          {error && <div className="bg-rose-50 border border-rose-200 text-rose-900 text-sm p-2 rounded">{error}</div>}
+          <div>
+            <Label>SDR</Label>
+            <Select value={sdrId} onChange={(e) => setSdrId(e.target.value === "" ? "" : Number(e.target.value))}>
+              <option value="">— pick an SDR —</option>
+              {sdrs.map((s) => <option key={s.id} value={s.id}>{s.name || s.email}</option>)}
+            </Select>
+          </div>
+          <div>
+            <Label>Target brand count</Label>
+            <Input type="number" min={0} value={target} onChange={(e) => setTarget(Number(e.target.value))} />
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button
+              disabled={assign.isPending}
+              onClick={async () => {
+                if (sdrId === "") return setError("Pick an SDR")
+                try {
+                  await assign.mutateAsync({ sdr_id: Number(sdrId), target_count: target })
+                  onClose()
+                } catch {
+                  setError("Could not assign — already assigned?")
+                }
+              }}
+            >
+              {assign.isPending ? "Saving…" : "Assign"}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   )
 }

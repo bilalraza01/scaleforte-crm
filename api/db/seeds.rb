@@ -279,6 +279,28 @@ end
 puts "  ✓ #{brands_created} brands · #{contacts_created} contacts · #{pain_points_created} pain points"
 puts "  ✓ #{engagement_seeded} engagement summaries (replies, opens, bounces)"
 
+# --- Unclaimed brands per campaign so SDRs have something to "Start Next" --
+unclaimed_created = 0
+campaigns.each do |campaign|
+  rand(15..30).times do
+    seller_id = "A#{Faker::Alphanumeric.alphanumeric(number: 12).upcase}"
+    next if Brand.exists?(campaign_id: campaign.id, amazon_seller_id: seller_id)
+    brand_name = Faker::Company.name.gsub(/\s+(LLC|Inc|Group|Ltd)\.?$/, "")
+    Brand.create!(
+      campaign_id: campaign.id,
+      sdr_id: nil,                      # unclaimed
+      amazon_seller_id: seller_id,
+      brand_name: brand_name,
+      asin: "B0#{Faker::Alphanumeric.alphanumeric(number: 8).upcase}",
+      amazon_link: "https://amazon.com/dp/B0#{Faker::Alphanumeric.alphanumeric(number: 8).upcase}",
+      status: :draft,
+      created_at: rand(14.days.ago..Time.current)
+    )
+    unclaimed_created += 1
+  end
+end
+puts "  ✓ #{unclaimed_created} unclaimed brands across #{campaigns.size} campaigns (Start Next Brand)"
+
 # --- A handful of sample replied EngagementEvents so the Replies inbox has
 #     something to look at. -----------------------------------------------
 replied_summaries = ContactEngagementSummary.where(current_status: :replied).limit(20)
