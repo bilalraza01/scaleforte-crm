@@ -18,7 +18,10 @@ export function AppShell() {
             <Link to="/dashboard" className="text-sm text-slate-700 hover:underline">Dashboard</Link>
             <Link to="/worklist" className="text-sm text-slate-700 hover:underline">Worklist</Link>
             {(isAdmin || isManager) && (
-              <Link to="/users" className="text-sm text-slate-700 hover:underline">Users</Link>
+              <>
+                <Link to="/review" className="text-sm text-slate-700 hover:underline">Review</Link>
+                <Link to="/users" className="text-sm text-slate-700 hover:underline">Users</Link>
+              </>
             )}
             {isAdmin && (
               <>

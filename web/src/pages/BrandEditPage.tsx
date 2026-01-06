@@ -9,6 +9,8 @@ import {
 import type { Brand, Contact } from "@/types"
 import { useAuth } from "@/auth/AuthProvider"
 import type { ApiError } from "@/lib/http"
+import { PainPointsPanel } from "@/components/PainPointsPanel"
+import { AuditScreenshotsPanel } from "@/components/AuditScreenshotsPanel"
 
 export function BrandEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -137,8 +139,16 @@ function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
           )}
         </form>
 
-        {/* Right column: contacts */}
-        <ContactsPanel brand={brand} canEdit={canEdit} />
+        {/* Right column: contacts + pain points + audit screenshots */}
+        <div className="space-y-4">
+          <ContactsPanel brand={brand} canEdit={canEdit} />
+          <div className="bg-white shadow rounded p-4">
+            <PainPointsPanel brandId={brand.id} painPoints={brand.pain_points} canEdit={canEdit} />
+          </div>
+          <div className="bg-white shadow rounded p-4">
+            <AuditScreenshotsPanel brandId={brand.id} screenshots={brand.audit_screenshots} canEdit={canEdit} />
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -44,6 +44,26 @@ export interface Contact {
   smartlead_lead_id: number | null
 }
 
+export type PainPointCategory =
+  | "listing_copy" | "images" | "reviews" | "ppc" | "inventory" | "pricing" | "other"
+
+export interface PainPoint {
+  id: number
+  brand_id: number
+  category: PainPointCategory
+  description: string | null
+  display_order: number
+}
+
+export interface AuditScreenshot {
+  id: number
+  filename: string
+  byte_size: number
+  content_type: string
+  url: string
+  created_at: string
+}
+
 export interface Brand {
   id: number
   campaign_id: number
@@ -63,5 +83,8 @@ export interface Brand {
   status: BrandStatus
   skip_reason: string | null
   pushed_at: string | null
+  missing_ready_fields: string[]
   contacts: Contact[]
+  pain_points: PainPoint[]
+  audit_screenshots: AuditScreenshot[]
 }

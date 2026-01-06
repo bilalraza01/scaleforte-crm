@@ -12,6 +12,7 @@ import { CategoriesPage } from "@/pages/CategoriesPage"
 import { CampaignsPage } from "@/pages/CampaignsPage"
 import { WorklistPage } from "@/pages/WorklistPage"
 import { BrandEditPage } from "@/pages/BrandEditPage"
+import { ReviewPage } from "@/pages/ReviewPage"
 import { AppShell } from "@/components/AppShell"
 
 const queryClient = new QueryClient({
@@ -42,6 +43,14 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/worklist" element={<WorklistPage />} />
               <Route path="/brands/:id" element={<BrandEditPage />} />
+              <Route
+                path="/review"
+                element={
+                  <ProtectedRoute roles={["admin", "manager"]}>
+                    <ReviewPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/users"
                 element={
