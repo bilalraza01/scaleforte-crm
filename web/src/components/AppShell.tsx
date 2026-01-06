@@ -29,6 +29,7 @@ export function AppShell() {
                 <Link to="/categories" className="text-sm text-slate-700 hover:underline">Categories</Link>
                 <Link to="/campaigns" className="text-sm text-slate-700 hover:underline">Campaigns</Link>
                 <Link to="/push" className="text-sm text-slate-700 hover:underline">Push</Link>
+                <Link to="/audit-log" className="text-sm text-slate-700 hover:underline">Audit</Link>
                 <Link to="/settings" className="text-sm text-slate-700 hover:underline">Settings</Link>
               </>
             )}

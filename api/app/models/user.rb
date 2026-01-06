@@ -9,6 +9,9 @@ class User < ApplicationRecord
 
   belongs_to :manager, class_name: "User", optional: true
   has_many :sdrs, class_name: "User", foreign_key: :manager_id, dependent: :nullify
+  has_many :campaign_assignments, foreign_key: :sdr_id, dependent: :destroy
+  has_many :campaigns, through: :campaign_assignments
+  has_many :sourced_brands, class_name: "Brand", foreign_key: :sdr_id, dependent: :nullify
 
   validates :name, presence: true
   validate  :manager_must_be_a_manager

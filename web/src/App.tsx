@@ -16,6 +16,7 @@ import { ReviewPage } from "@/pages/ReviewPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { RepliesPage } from "@/pages/RepliesPage"
 import { PushPage, PushDetailPage } from "@/pages/PushPage"
+import { AuditLogPage } from "@/pages/AuditLogPage"
 import { AppShell } from "@/components/AppShell"
 
 const queryClient = new QueryClient({
@@ -115,6 +116,14 @@ function App() {
                 element={
                   <ProtectedRoute roles={["admin"]}>
                     <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/audit-log"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <AuditLogPage />
                   </ProtectedRoute>
                 }
               />
