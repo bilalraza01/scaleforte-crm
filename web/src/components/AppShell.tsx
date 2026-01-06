@@ -20,6 +20,7 @@ export function AppShell() {
             {(isAdmin || isManager) && (
               <>
                 <Link to="/review" className="text-sm text-slate-700 hover:underline">Review</Link>
+                <Link to="/replies" className="text-sm text-slate-700 hover:underline">Replies</Link>
                 <Link to="/users" className="text-sm text-slate-700 hover:underline">Users</Link>
               </>
             )}
@@ -27,6 +28,8 @@ export function AppShell() {
               <>
                 <Link to="/categories" className="text-sm text-slate-700 hover:underline">Categories</Link>
                 <Link to="/campaigns" className="text-sm text-slate-700 hover:underline">Campaigns</Link>
+                <Link to="/push" className="text-sm text-slate-700 hover:underline">Push</Link>
+                <Link to="/settings" className="text-sm text-slate-700 hover:underline">Settings</Link>
               </>
             )}
           </div>

@@ -13,6 +13,9 @@ import { CampaignsPage } from "@/pages/CampaignsPage"
 import { WorklistPage } from "@/pages/WorklistPage"
 import { BrandEditPage } from "@/pages/BrandEditPage"
 import { ReviewPage } from "@/pages/ReviewPage"
+import { SettingsPage } from "@/pages/SettingsPage"
+import { RepliesPage } from "@/pages/RepliesPage"
+import { PushPage, PushDetailPage } from "@/pages/PushPage"
 import { AppShell } from "@/components/AppShell"
 
 const queryClient = new QueryClient({
@@ -80,6 +83,38 @@ function App() {
                 element={
                   <ProtectedRoute roles={["admin"]}>
                     <CampaignsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/replies"
+                element={
+                  <ProtectedRoute roles={["admin", "manager"]}>
+                    <RepliesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/push"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <PushPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/push/:id"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <PushDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <SettingsPage />
                   </ProtectedRoute>
                 }
               />
