@@ -62,6 +62,16 @@ Rails.application.routes.draw do
       end
 
       resources :pushes, only: [:index, :show, :create]
+
+      # Engagement events (Phase 2 Week 5/6).
+      resources :replies, only: [:index] do
+        member { patch :classify }
+      end
+
+      get "integration_health/smartlead", to: "integration_health#smartlead"
     end
   end
+
+  # Public webhook receiver — no /api/v1 prefix per PRD §9.4.
+  post "/webhooks/smartlead", to: "webhooks#smartlead"
 end
