@@ -20,6 +20,8 @@ export interface SdrDashboard {
 export interface ManagerDashboard {
   team_size: number
   awaiting_review_count: number
+  daily_brand_target: number
+  team_marked_ready_today: number
   per_sdr: {
     id: number
     name: string
@@ -27,6 +29,7 @@ export interface ManagerDashboard {
     drafts: number
     ready: number
     approved_or_pushed: number
+    marked_ready_today: number
     engagement: EngagementStats
   }[]
 }
@@ -40,6 +43,11 @@ export interface AdminDashboard {
     replied: number
     bounced: number
   }
+  today: {
+    marked_ready: number
+    daily_target: number
+    sdr_count: number
+  }
   per_category: {
     id: number
     name: string
@@ -51,6 +59,7 @@ export interface AdminDashboard {
     id: number
     name: string
     mtd_completed: number
+    marked_ready_today: number
     engagement: EngagementStats
   }[]
   weekly_volume: Record<string, number>

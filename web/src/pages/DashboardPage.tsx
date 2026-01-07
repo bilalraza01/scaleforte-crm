@@ -5,7 +5,7 @@ import { Card, CardHeader, CardBody } from "@/components/ui/Card"
 import { Stat } from "@/components/ui/Stat"
 import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
 import { Badge } from "@/components/ui/Badge"
-import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox } from "lucide-react"
+import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target } from "lucide-react"
 import {
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar
 } from "recharts"
@@ -104,37 +104,58 @@ function ManagerView() {
   const { data, isLoading } = useManagerDashboard()
   if (isLoading || !data) return pageWrap(<p className="text-slate-500">Loading…</p>)
 
+  const target  = data.daily_brand_target
+  const teamCap = target * data.per_sdr.length
+  const teamPct = teamCap > 0 ? Math.min(100, Math.round((data.team_marked_ready_today / teamCap) * 100)) : 0
+
   return pageWrap(
     <>
       <PageHeader title="Team dashboard" subtitle="Performance and queue health for your team." />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Stat icon={<Users size={16} />}      tone="indigo"  label="Team size" value={data.team_size} />
+        <Stat icon={<Target size={16} />}     tone="emerald" label="Marked Ready today"
+              value={target > 0 ? `${data.team_marked_ready_today} / ${teamCap}` : data.team_marked_ready_today}
+              hint={target > 0 ? `${teamPct}% of team daily target` : "No daily target set"} />
         <Stat icon={<Inbox size={16} />}      tone="amber"   label="Awaiting review" value={data.awaiting_review_count} />
         <Stat icon={<MailCheck size={16} />}  tone="emerald" label="Active SDRs" value={data.per_sdr.length} />
       </div>
 
       <Card>
-        <CardHeader title="Per-SDR (last 30 days)" subtitle="Sortable in v1.1." />
+        <CardHeader title="Per-SDR" subtitle="Today's progress + month-to-date." />
         <Table>
           <THead>
             <TR>
-              <TH>SDR</TH><TH>MTD</TH><TH>Drafts</TH><TH>Ready</TH>
+              <TH>SDR</TH>
+              <TH>Today</TH>
+              <TH>MTD</TH><TH>Drafts</TH><TH>Ready</TH>
               <TH>Approved/Pushed</TH><TH>Reply rate</TH><TH>Bounce rate</TH>
             </TR>
           </THead>
           <tbody>
-            {data.per_sdr.map((s) => (
-              <TR key={s.id}>
-                <TD className="font-medium text-slate-900">{s.name}</TD>
-                <TD className="tabular-nums">{s.mtd_completed}</TD>
-                <TD className="tabular-nums"><Badge tone="slate">{s.drafts}</Badge></TD>
-                <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
-                <TD className="tabular-nums"><Badge tone="emerald">{s.approved_or_pushed}</Badge></TD>
-                <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
-                <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
-              </TR>
-            ))}
+            {data.per_sdr.map((s) => {
+              const hit = target > 0 && s.marked_ready_today >= target
+              return (
+                <TR key={s.id}>
+                  <TD className="font-medium text-slate-900">{s.name}</TD>
+                  <TD className="tabular-nums">
+                    {target > 0 ? (
+                      <Badge tone={hit ? "emerald" : s.marked_ready_today === 0 ? "rose" : "amber"}>
+                        {s.marked_ready_today} / {target}
+                      </Badge>
+                    ) : (
+                      <span className="text-slate-600 tabular-nums">{s.marked_ready_today}</span>
+                    )}
+                  </TD>
+                  <TD className="tabular-nums">{s.mtd_completed}</TD>
+                  <TD className="tabular-nums"><Badge tone="slate">{s.drafts}</Badge></TD>
+                  <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
+                  <TD className="tabular-nums"><Badge tone="emerald">{s.approved_or_pushed}</Badge></TD>
+                  <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
+                  <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
+                </TR>
+              )
+            })}
           </tbody>
         </Table>
       </Card>
@@ -169,6 +190,52 @@ function AdminView() {
         <Stat icon={<MailCheck  size={16} />} label="Replied"          value={data.totals.replied}          tone="emerald" />
         <Stat icon={<MailX      size={16} />} label="Bounced"          value={data.totals.bounced}          tone="rose" />
       </div>
+
+      {/* Today's daily-target snapshot — the metric admins/managers care about most. */}
+      <Card className="mb-6">
+        <CardHeader
+          title="Today"
+          subtitle={
+            data.today.daily_target > 0
+              ? `Target: ${data.today.daily_target} brands per SDR`
+              : "Set a daily target in Settings to track per-SDR progress."
+          }
+        />
+        <CardBody>
+          {(() => {
+            const total  = data.today.marked_ready
+            const cap    = data.today.daily_target * data.today.sdr_count
+            const pct    = cap > 0 ? Math.min(100, Math.round((total / cap) * 100)) : 0
+            const onPace = data.today.daily_target > 0 ? data.per_sdr.filter((s) => s.marked_ready_today >= data.today.daily_target).length : 0
+            return (
+              <div className="space-y-3">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-3xl font-semibold text-slate-900 tabular-nums">
+                      {total}{cap > 0 && <span className="text-slate-400 font-normal"> / {cap}</span>}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">brands marked Ready by {data.today.sdr_count} active SDR{data.today.sdr_count === 1 ? "" : "s"}</div>
+                  </div>
+                  {data.today.daily_target > 0 && (
+                    <div className="text-right">
+                      <div className="text-sm text-slate-700"><strong>{onPace}</strong> of {data.today.sdr_count} on or above target</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{pct}% of agency capacity</div>
+                    </div>
+                  )}
+                </div>
+                {cap > 0 && (
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full transition-[width] duration-300 bg-emerald-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </CardBody>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card className="lg:col-span-2">
@@ -242,24 +309,37 @@ function AdminView() {
       </Card>
 
       <Card>
-        <CardHeader title="Per-SDR (top performers)" />
+        <CardHeader title="Per-SDR" subtitle="Today + month-to-date." />
         <Table>
           <THead>
             <TR>
-              <TH>SDR</TH><TH>MTD</TH><TH>Sent</TH>
+              <TH>SDR</TH><TH>Today</TH><TH>MTD</TH><TH>Sent</TH>
               <TH>Reply rate</TH><TH>Bounce rate</TH>
             </TR>
           </THead>
           <tbody>
-            {data.per_sdr.map((s) => (
-              <TR key={s.id}>
-                <TD className="font-medium text-slate-900">{s.name}</TD>
-                <TD className="tabular-nums">{s.mtd_completed}</TD>
-                <TD className="tabular-nums">{s.engagement.sent}</TD>
-                <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
-                <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
-              </TR>
-            ))}
+            {data.per_sdr.map((s) => {
+              const target = data.today.daily_target
+              const hit = target > 0 && s.marked_ready_today >= target
+              return (
+                <TR key={s.id}>
+                  <TD className="font-medium text-slate-900">{s.name}</TD>
+                  <TD className="tabular-nums">
+                    {target > 0 ? (
+                      <Badge tone={hit ? "emerald" : s.marked_ready_today === 0 ? "rose" : "amber"}>
+                        {s.marked_ready_today} / {target}
+                      </Badge>
+                    ) : (
+                      <span className="text-slate-600 tabular-nums">{s.marked_ready_today}</span>
+                    )}
+                  </TD>
+                  <TD className="tabular-nums">{s.mtd_completed}</TD>
+                  <TD className="tabular-nums">{s.engagement.sent}</TD>
+                  <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
+                  <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
+                </TR>
+              )
+            })}
           </tbody>
         </Table>
       </Card>

@@ -32,31 +32,38 @@ module Api
       def manager
         authorize :dashboard, :manager?, policy_class: DashboardPolicy
         team_user_ids = User.where(manager_id: current_user.id).pluck(:id)
+        daily_target  = SystemConfig.current.daily_brand_target
 
         per_sdr = User.where(id: team_user_ids).map do |sdr|
           brands = Brand.where(sdr_id: sdr.id)
+          marked_today = brands.where(marked_ready_at: Time.current.all_day).count
           { id: sdr.id,
             name: sdr.display_name,
             mtd_completed: brands.where("updated_at >= ?", Time.current.beginning_of_month).where.not(status: :draft).count,
             drafts: brands.draft_status.count,
             ready: brands.ready_status.count,
             approved_or_pushed: brands.where(status: [:approved, :pushed]).count,
+            marked_ready_today: marked_today,
             engagement: engagement_stats_for_brands(brands)
           }
         end
 
         awaiting_review_count = Brand.ready_status.where(sdr_id: team_user_ids).count
+        team_marked_today     = Brand.where(sdr_id: team_user_ids, marked_ready_at: Time.current.all_day).count
 
         render json: {
           team_size: team_user_ids.size,
           awaiting_review_count: awaiting_review_count,
+          daily_brand_target: daily_target,
+          team_marked_ready_today: team_marked_today,
           per_sdr: per_sdr
         }
       end
 
       def admin
         authorize :dashboard, :admin?, policy_class: DashboardPolicy
-        month_start = Time.current.beginning_of_month
+        month_start  = Time.current.beginning_of_month
+        daily_target = SystemConfig.current.daily_brand_target
 
         per_category = Category.includes(:campaigns).map do |cat|
           campaign_ids = cat.campaigns.pluck(:id)
@@ -69,8 +76,10 @@ module Api
 
         per_sdr = User.sdr_role.active.map do |sdr|
           brands = Brand.where(sdr_id: sdr.id)
+          marked_today = brands.where(marked_ready_at: Time.current.all_day).count
           { id: sdr.id, name: sdr.display_name,
             mtd_completed: brands.where("updated_at >= ?", month_start).where.not(status: :draft).count,
+            marked_ready_today: marked_today,
             engagement:    engagement_stats_for_brands(brands) }
         end
 
@@ -78,6 +87,8 @@ module Api
           .group("date_trunc('week', created_at)")
           .count
           .transform_keys { |t| t.to_date.iso8601 }
+
+        agency_marked_today = Brand.where(marked_ready_at: Time.current.all_day).count
 
         render json: {
           totals: {
@@ -87,6 +98,11 @@ module Api
             pushed:           Brand.pushed_status.count,
             replied:          ContactEngagementSummary.where.not(last_replied_at: nil).count,
             bounced:          ContactEngagementSummary.where.not(bounced_at: nil).count
+          },
+          today: {
+            marked_ready: agency_marked_today,
+            daily_target: daily_target,
+            sdr_count:    User.sdr_role.active.count,
           },
           per_category: per_category,
           per_sdr:      per_sdr,
