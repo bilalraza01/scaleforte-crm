@@ -38,7 +38,7 @@ module Api
           { id: sdr.id,
             name: sdr.display_name,
             mtd_completed: brands.where("updated_at >= ?", Time.current.beginning_of_month).where.not(status: :draft).count,
-            drafts: brands.where(status: [:draft, :in_progress]).count,
+            drafts: brands.draft_status.count,
             ready: brands.ready_status.count,
             approved_or_pushed: brands.where(status: [:approved, :pushed]).count,
             engagement: engagement_stats_for_brands(brands)

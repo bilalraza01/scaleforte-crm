@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_04_130959) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -67,11 +67,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
     t.bigint "smartlead_pushed_campaign_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["campaign_id", "amazon_seller_id"], name: "index_brands_on_campaign_id_and_amazon_seller_id", unique: true
+    t.bigint "subcategory_id"
+    t.datetime "marked_ready_at"
+    t.index ["amazon_seller_id"], name: "index_brands_on_amazon_seller_id", unique: true
+    t.index ["campaign_id", "amazon_seller_id"], name: "index_brands_on_campaign_id_and_amazon_seller_id"
     t.index ["campaign_id"], name: "index_brands_on_campaign_id"
+    t.index ["sdr_id", "marked_ready_at"], name: "index_brands_on_sdr_id_and_marked_ready_at"
     t.index ["sdr_id", "status"], name: "index_brands_on_sdr_id_and_status"
     t.index ["sdr_id"], name: "index_brands_on_sdr_id"
     t.index ["status"], name: "index_brands_on_status"
+    t.index ["subcategory_id"], name: "index_brands_on_subcategory_id"
   end
 
   create_table "campaign_assignments", force: :cascade do |t|
@@ -109,6 +114,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
     t.datetime "updated_at", null: false
     t.index ["active"], name: "index_categories_on_active"
     t.index ["name"], name: "index_categories_on_name", unique: true
+  end
+
+  create_table "category_assignments", force: :cascade do |t|
+    t.bigint "category_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "assigned_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assigned_by_user_id"], name: "index_category_assignments_on_assigned_by_user_id"
+    t.index ["category_id", "user_id"], name: "index_category_assignments_on_category_id_and_user_id", unique: true
+    t.index ["category_id"], name: "index_category_assignments_on_category_id"
+    t.index ["user_id"], name: "index_category_assignments_on_user_id"
   end
 
   create_table "contact_engagement_summaries", force: :cascade do |t|
@@ -216,6 +233,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "subcategories", force: :cascade do |t|
+    t.bigint "category_id", null: false
+    t.string "name", null: false
+    t.bigint "created_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id", "name"], name: "index_subcategories_on_category_id_and_name", unique: true
+    t.index ["category_id"], name: "index_subcategories_on_category_id"
+    t.index ["created_by_user_id"], name: "index_subcategories_on_created_by_user_id"
+  end
+
+  create_table "system_configs", force: :cascade do |t|
+    t.integer "daily_brand_target", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -236,6 +270,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
     t.string "invited_by_type"
     t.bigint "invited_by_id"
     t.integer "invitations_count", default: 0
+    t.string "workspace_access", default: [], null: false, array: true
     t.index ["active"], name: "index_users_on_active"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["invitation_token"], name: "index_users_on_invitation_token", unique: true
@@ -244,6 +279,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
     t.index ["manager_id"], name: "index_users_on_manager_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role"], name: "index_users_on_role"
+    t.index ["workspace_access"], name: "index_users_on_workspace_access", using: :gin
   end
 
   create_table "versions", force: :cascade do |t|
@@ -260,14 +296,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_01_062807) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "brands", "campaigns"
+  add_foreign_key "brands", "subcategories"
   add_foreign_key "brands", "users", column: "sdr_id"
   add_foreign_key "campaign_assignments", "campaigns"
   add_foreign_key "campaign_assignments", "users", column: "sdr_id"
   add_foreign_key "campaigns", "categories"
+  add_foreign_key "category_assignments", "categories"
+  add_foreign_key "category_assignments", "users"
+  add_foreign_key "category_assignments", "users", column: "assigned_by_user_id"
   add_foreign_key "contact_engagement_summaries", "contacts"
   add_foreign_key "contacts", "brands"
   add_foreign_key "engagement_events", "contacts"
   add_foreign_key "pain_points", "brands"
   add_foreign_key "push_receipts", "users"
+  add_foreign_key "subcategories", "categories"
+  add_foreign_key "subcategories", "users", column: "created_by_user_id"
   add_foreign_key "users", "users", column: "manager_id"
 end

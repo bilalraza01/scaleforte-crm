@@ -98,6 +98,38 @@ sdrs = managers.flat_map.with_index do |manager, m_idx|
 end
 puts "  ✓ #{sdrs.size} SDRs"
 
+# --- Onboarder + Accountant — single user per workspace so the new tier-1
+# rail icons have someone to sign in as.
+onboarder = User.find_or_initialize_by(email: "olivia@scaleforte.local")
+if onboarder.new_record?
+  onboarder.assign_attributes(
+    name: "Olivia Onboarding", role: :onboarder, active: true,
+    password: "Password123!", password_confirmation: "Password123!"
+  )
+  onboarder.skip_invitation = true
+  onboarder.save!
+end
+
+accountant = User.find_or_initialize_by(email: "alex@scaleforte.local")
+if accountant.new_record?
+  accountant.assign_attributes(
+    name: "Alex Accounts", role: :accountant, active: true,
+    password: "Password123!", password_confirmation: "Password123!"
+  )
+  accountant.skip_invitation = true
+  accountant.save!
+end
+puts "  ✓ onboarder + accountant"
+
+# --- Workspace access ------------------------------------------------------
+# Idempotent: re-seeding sets every user's workspace_access to the role's
+# default. Admin overrides applied via the UI later won't be wiped because
+# this only runs against the seed-created accounts.
+([admin] + managers + sdrs + [onboarder, accountant]).each do |u|
+  u.update_column(:workspace_access, WorkspaceDefaults.for(u.role))
+end
+puts "  ✓ workspace_access set for all seeded users"
+
 # --- Campaigns (current month) --------------------------------------------
 this_month = Date.current
 campaigns = categories.map do |cat|
@@ -118,16 +150,46 @@ sdrs.each do |sdr|
 end
 puts "  ✓ campaign assignments"
 
+# --- CategoryAssignments — each SDR works on the categories of the campaigns
+# they were assigned to above. Coarser-grained scope: when admin/manager
+# adds a brand to a category, every SDR with that category sees it.
+sdrs.each do |sdr|
+  cat_ids = sdr.campaign_assignments.joins(:campaign).pluck("campaigns.category_id").uniq
+  cat_ids.each do |cat_id|
+    CategoryAssignment.find_or_create_by!(user_id: sdr.id, category_id: cat_id) do |a|
+      a.assigned_by_user = admin
+    end
+  end
+end
+puts "  ✓ category assignments"
+
+# --- A handful of subcategories so the worklist filter has something to show.
+seed_subs = {
+  "Beauty & Personal Care" => %w[Skincare Haircare Fragrance],
+  "Health & Household"     => %w[Vitamins Supplements OralCare],
+  "Pet Supplies"           => %w[Dogs Cats SmallPets],
+}
+seed_subs.each do |cat_name, names|
+  cat = categories.find { |c| c.name == cat_name }
+  next unless cat
+  names.each do |n|
+    Subcategory.find_or_create_by!(category_id: cat.id, name: n) do |s|
+      s.created_by_user = admin
+    end
+  end
+end
+puts "  ✓ subcategories"
+
 # --- Brands ----------------------------------------------------------------
 # We want a realistic spread: most pushed (so dashboards have engagement data),
-# some approved/ready/in_progress, a few drafts and skipped.
+# some approved/ready, a chunk of drafts (in_progress merged into draft), and
+# a few skipped.
 STATUS_DISTRIBUTION = [
-  [:pushed,      0.55],
-  [:approved,    0.10],
-  [:ready,       0.08],
-  [:in_progress, 0.10],
-  [:draft,       0.12],
-  [:skipped,     0.05]
+  [:pushed,   0.55],
+  [:approved, 0.10],
+  [:ready,    0.08],
+  [:draft,    0.22],
+  [:skipped,  0.05]
 ].freeze
 
 PAIN_POINT_TEMPLATES = {
@@ -175,26 +237,42 @@ brands_created = 0
 contacts_created = 0
 pain_points_created = 0
 engagement_seeded = 0
+screenshots_attached = 0
+unnamed_contacts = 0
+
+# 67-byte transparent 1×1 PNG. Stored on whatever Active Storage service is
+# configured (R2 in dev when R2_BUCKET is set, local Disk otherwise) so the
+# CSV export's audit_url_1..5 columns have real URLs to look at.
+PIXEL_PNG = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82".b
 
 sdrs.each do |sdr|
   assignments = CampaignAssignment.where(sdr_id: sdr.id).includes(:campaign).to_a
   next if assignments.empty?
 
-  num_brands = rand(8..12)
+  num_brands = rand(12..20)
   num_brands.times do
     assignment = assignments.sample
     campaign = assignment.campaign
     seller_id = "A#{Faker::Alphanumeric.alphanumeric(number: 12).upcase}"
 
-    next if Brand.exists?(campaign_id: campaign.id, amazon_seller_id: seller_id)
+    next if Brand.exists?(amazon_seller_id: seller_id)
 
     status = pick_status_with_distribution
     brand_name = Faker::Company.name.gsub(/\s+(LLC|Inc|Group|Ltd)\.?$/, "")
     business_name = "#{brand_name} #{['LLC', 'Inc', 'Co'].sample}"
 
+    # 70% of brands get a subcategory (only when the campaign's category has
+    # any seeded). Mirrors how SDRs use it in practice — most brands tagged,
+    # some left at the category level.
+    subcategory = nil
+    if rand < 0.7
+      subcategory = Subcategory.where(category_id: campaign.category_id).sample
+    end
+
     brand = Brand.create!(
       campaign_id: campaign.id,
       sdr_id: sdr.id,
+      subcategory_id: subcategory&.id,
       amazon_seller_id: seller_id,
       brand_name: brand_name,
       business_name: business_name,
@@ -213,21 +291,31 @@ sdrs.each do |sdr|
     )
     brands_created += 1
 
+    # 5% of brands get all-unnamed contacts so the salutation fallback's
+    # "there" path actually lights up in the CSV export.
+    all_unnamed = rand < 0.05
+
     # 1-4 contacts.
     num_contacts = rand(1..4)
     primary_index = rand(num_contacts)
     num_contacts.times do |i|
       contact_first = Faker::Name.first_name
       contact_last  = Faker::Name.last_name
+      # Otherwise leave 10% of individual contacts nameless — exercises the
+      # primary/any-named/there fallback chain on real-looking data.
+      named = !all_unnamed && rand >= 0.1
       contact = brand.contacts.create!(
-        name: "#{contact_first} #{contact_last}",
+        name: named ? "#{contact_first} #{contact_last}" : nil,
         designation: ["CEO", "Founder", "Marketing Director", "Head of Ecommerce", "Brand Manager"].sample,
-        email: "#{contact_first.downcase}.#{contact_last.downcase}@#{brand_name.downcase.gsub(/[^a-z]+/, '')}.com",
+        email: named ?
+          "#{contact_first.downcase}.#{contact_last.downcase}@#{brand_name.downcase.gsub(/[^a-z]+/, '')}.com" :
+          "info+#{i}@#{brand_name.downcase.gsub(/[^a-z]+/, '')}.com",
         phone: rand < 0.4 ? Faker::PhoneNumber.cell_phone : nil,
-        personal_linkedin: rand < 0.5 ? "https://linkedin.com/in/#{contact_first.downcase}-#{contact_last.downcase}" : nil,
+        personal_linkedin: named && rand < 0.5 ? "https://linkedin.com/in/#{contact_first.downcase}-#{contact_last.downcase}" : nil,
         is_primary: i == primary_index
       )
       contacts_created += 1
+      unnamed_contacts += 1 unless named
 
       # Engagement summary for ~70% of pushed-brand primary contacts.
       next unless brand.status == "pushed" && contact.is_primary && rand < 0.7
@@ -262,21 +350,38 @@ sdrs.each do |sdr|
     end
 
     # 1-3 pain points (only if not draft).
-    next if brand.status == "draft"
-    num_pp = rand(1..3)
-    sampled_categories = PAIN_POINT_TEMPLATES.keys.sample(num_pp)
-    sampled_categories.each_with_index do |cat, idx|
-      brand.pain_points.create!(
-        category: cat,
-        description: PAIN_POINT_TEMPLATES[cat].sample,
-        display_order: idx
-      )
-      pain_points_created += 1
+    if brand.status != "draft"
+      num_pp = rand(1..3)
+      sampled_categories = PAIN_POINT_TEMPLATES.keys.sample(num_pp)
+      sampled_categories.each_with_index do |cat, idx|
+        brand.pain_points.create!(
+          category: cat,
+          description: PAIN_POINT_TEMPLATES[cat].sample,
+          display_order: idx
+        )
+        pain_points_created += 1
+      end
+    end
+
+    # 30% of brands get audit screenshots — distribution favours 1-2, with a
+    # few hitting the 5-image cap so the export's audit_url_1..5 columns are
+    # all populated on at least some rows.
+    if rand < 0.3
+      n_shots = [1, 1, 1, 2, 2, 3, 5].sample
+      n_shots.times do |i|
+        brand.audit_screenshots.attach(
+          io: StringIO.new(PIXEL_PNG.dup),
+          filename: "audit-#{brand.id}-#{i + 1}.png",
+          content_type: "image/png"
+        )
+        screenshots_attached += 1
+      end
     end
   end
 end
 
-puts "  ✓ #{brands_created} brands · #{contacts_created} contacts · #{pain_points_created} pain points"
+puts "  ✓ #{brands_created} brands · #{contacts_created} contacts (#{unnamed_contacts} unnamed) · #{pain_points_created} pain points"
+puts "  ✓ #{screenshots_attached} audit screenshots attached"
 puts "  ✓ #{engagement_seeded} engagement summaries (replies, opens, bounces)"
 
 # --- A handful of sample replied EngagementEvents so the Replies inbox has

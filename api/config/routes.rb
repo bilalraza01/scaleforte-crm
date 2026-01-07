@@ -23,14 +23,19 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      get "me", to: "me#show"
+      get "me",       to: "me#show"
+      get "me/today", to: "me#today"
+
+      resource :system_config, only: [:show, :update]
 
       resources :users, only: [:index, :show, :update] do
         member { patch :deactivate }
+        resources :category_assignments, only: [:index, :create, :destroy]
       end
 
       resources :categories, only: [:index, :show, :create, :update] do
         member { patch :archive }
+        resources :subcategories, only: [:index, :create]
       end
 
       resources :campaigns, only: [:index, :show, :create, :update] do
@@ -38,6 +43,11 @@ Rails.application.routes.draw do
       end
 
       resources :brands, only: [:index, :show, :create, :update] do
+        collection do
+          get :export
+          get :lookup
+          post :bulk_reassign
+        end
         member do
           post :mark_ready
           post :approve

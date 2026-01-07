@@ -10,9 +10,11 @@ class BrandResource
     b.revenue&.to_s
   end
 
-  attribute :campaign_id  do |b| b.campaign_id  end
-  attribute :sdr_id       do |b| b.sdr_id       end
-  attribute :sdr_name     do |b| b.sdr&.display_name end
+  attribute :campaign_id    do |b| b.campaign_id    end
+  attribute :sdr_id         do |b| b.sdr_id         end
+  attribute :sdr_name       do |b| b.sdr&.display_name end
+  attribute :subcategory_id do |b| b.subcategory_id end
+  attribute :subcategory_name do |b| b.subcategory&.name end
 
   attribute :missing_ready_fields do |b|
     b.missing_ready_fields
