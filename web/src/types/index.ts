@@ -1,4 +1,4 @@
-export type { User, Role } from "./user"
+export type { User, Role, WorkspaceKey } from "./user"
 
 export type CampaignStatus = "draft" | "active" | "closed"
 
@@ -26,7 +26,6 @@ export interface Campaign {
 
 export type BrandStatus =
   | "draft"
-  | "in_progress"
   | "ready"
   | "approved"
   | "pushed"
@@ -64,11 +63,29 @@ export interface AuditScreenshot {
   created_at: string
 }
 
+export interface Subcategory {
+  id: number
+  category_id: number
+  name: string
+  created_by_user_id: number | null
+  created_by_name: string | null
+}
+
+export interface CategoryAssignment {
+  id: number
+  category_id: number
+  user_id: number
+  category_name: string
+  user_name: string
+}
+
 export interface Brand {
   id: number
   campaign_id: number
   sdr_id: number | null
   sdr_name: string | null
+  subcategory_id: number | null
+  subcategory_name: string | null
   amazon_seller_id: string
   brand_name: string | null
   business_name: string | null

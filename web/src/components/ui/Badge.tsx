@@ -40,7 +40,6 @@ export function Badge({
 export function statusTone(status: string): Tone {
   switch (status) {
     case "draft":       return "slate"
-    case "in_progress": return "indigo"
     case "ready":       return "amber"
     case "approved":    return "sky"
     case "pushed":      return "emerald"

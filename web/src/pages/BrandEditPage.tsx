@@ -6,11 +6,12 @@ import {
   useSendBackBrand, useSkipBrand,
   useCreateContact, useUpdateContact, useDeleteContact
 } from "@/api/brands"
-import type { Brand, Contact } from "@/types"
+import type { Brand, Contact, User } from "@/types"
 import { useAuth } from "@/auth/AuthProvider"
 import type { ApiError } from "@/lib/http"
 import { PainPointsPanel } from "@/components/PainPointsPanel"
 import { AuditScreenshotsPanel } from "@/components/AuditScreenshotsPanel"
+import { validateContactEmail } from "@/lib/email-validation"
 
 export function BrandEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,10 +23,11 @@ export function BrandEditPage() {
     return <div className="p-6 text-slate-500">Loading…</div>
   }
 
-  return <BrandEditor brand={brand} userRole={user.role} />
+  return <BrandEditor brand={brand} user={user} />
 }
 
-function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
+function BrandEditor({ brand, user }: { brand: Brand; user: User }) {
+  const userRole = user.role
   const navigate = useNavigate()
   const update = useUpdateBrand(brand.id)
   const markReady = useMarkBrandReady(brand.id)
@@ -35,12 +37,13 @@ function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
   const [missing, setMissing] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
 
-  const { register, handleSubmit, reset } = useForm<Partial<Brand>>({
+  const { register, handleSubmit, reset, getValues, formState: { isDirty } } = useForm<Partial<Brand>>({
     defaultValues: brand,
   })
 
-  // Re-sync form when the brand is refetched after mutations.
-  useEffect(() => { reset(brand) }, [brand, reset])
+  // Re-sync form when the brand is refetched after mutations,
+  // but keep any field the user has edited but not yet saved.
+  useEffect(() => { reset(brand, { keepDirtyValues: true }) }, [brand, reset])
 
   const onSubmit = handleSubmit(async (input) => {
     await update.mutateAsync(input)
@@ -51,6 +54,9 @@ function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
   const onMarkReady = async () => {
     setMissing([])
     try {
+      // Persist any pending form edits first so the server-side
+      // guard sees the latest values (e.g. just-typed website).
+      if (isDirty) await update.mutateAsync(getValues())
       await markReady.mutateAsync()
     } catch (err) {
       const e = err as ApiError
@@ -59,9 +65,17 @@ function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
     }
   }
 
-  const isManager = userRole === "manager" || userRole === "admin"
-  const canEdit   = brand.status === "draft" || brand.status === "in_progress"
-  const canReview = isManager && brand.status === "ready"
+  const isAdmin   = userRole === "admin"
+  const isManager = userRole === "manager"
+  const isOwner   = user.id === brand.sdr_id
+  // Owner SDRs (and admins) keep editing access even after marking Ready,
+  // since fixes after submission are routine. Managers reviewing a Ready
+  // brand stay in review-only mode to avoid accidental edits.
+  const canEdit =
+    brand.status === "draft" ||
+    (brand.status === "ready" && (isOwner || isAdmin))
+  const canMarkReady = brand.status === "draft"
+  const canReview    = (isManager || isAdmin) && brand.status === "ready"
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -101,7 +115,7 @@ function BrandEditor({ brand, userRole }: { brand: Brand; userRole: string }) {
             <button type="submit" disabled={update.isPending || !canEdit} className="px-3 py-2 bg-slate-900 text-white rounded hover:bg-slate-700 disabled:opacity-50">
               {update.isPending ? "Saving…" : "Save draft"}
             </button>
-            {canEdit && (
+            {canMarkReady && (
               <button type="button" onClick={onMarkReady} disabled={markReady.isPending} className="px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50">
                 Mark Ready
               </button>
@@ -226,7 +240,7 @@ function ContactForm({ onCancel, onSubmit, saving }: {
   onSubmit: (input: Partial<Contact>) => Promise<void>
   saving: boolean
 }) {
-  const { register, handleSubmit } = useForm<Partial<Contact>>()
+  const { register, handleSubmit, formState: { errors } } = useForm<Partial<Contact>>()
   return (
     <form
       onSubmit={handleSubmit(async (input) => onSubmit(input))}
@@ -234,7 +248,16 @@ function ContactForm({ onCancel, onSubmit, saving }: {
     >
       <input placeholder="Name" {...register("name")} className="w-full border rounded px-2 py-1.5" />
       <input placeholder="Designation" {...register("designation")} className="w-full border rounded px-2 py-1.5" />
-      <input placeholder="Email" type="email" {...register("email", { required: true })} className="w-full border rounded px-2 py-1.5" />
+      <input
+        placeholder="Email"
+        type="email"
+        {...register("email", { required: "Email is required", validate: validateContactEmail })}
+        aria-invalid={errors.email ? "true" : "false"}
+        className="w-full border rounded px-2 py-1.5"
+      />
+      {errors.email?.message && (
+        <p className="text-rose-600 text-xs">{errors.email.message}</p>
+      )}
       <input placeholder="Phone" {...register("phone")} className="w-full border rounded px-2 py-1.5" />
       <input placeholder="LinkedIn" {...register("personal_linkedin")} className="w-full border rounded px-2 py-1.5" />
       <label className="inline-flex items-center gap-2 text-sm">

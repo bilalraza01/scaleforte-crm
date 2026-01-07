@@ -48,7 +48,9 @@ export function AcceptInvitationPage() {
         name: input.name,
       })
       await refresh()
-      navigate("/dashboard", { replace: true })
+      // HomeRedirect resolves the right landing page based on the new
+      // user's role + workspace_access.
+      navigate("/", { replace: true })
     } catch (err) {
       const e = err as ApiError
       setServerError(e.response?.data?.error ?? "Could not accept invitation")

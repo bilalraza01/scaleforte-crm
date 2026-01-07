@@ -6,7 +6,8 @@ import { Badge, statusTone } from "@/components/ui/Badge"
 import { ArrowRight, Inbox } from "lucide-react"
 
 export function ReviewPage() {
-  const { data: brands, isLoading } = useBrands({ status: "ready" })
+  const { data, isLoading } = useBrands({ status: "ready", per_page: 200 })
+  const brands = data?.data
 
   return (
     <div className="px-8 py-8 max-w-5xl mx-auto">
@@ -29,7 +30,7 @@ export function ReviewPage() {
           {brands.map((b) => (
             <Link
               key={b.id}
-              to={`/brands/${b.id}`}
+              to={`/acquisition/brands/${b.id}`}
               className="block px-5 py-4 hover:bg-slate-50 transition-colors group"
             >
               <div className="flex items-center justify-between gap-3">

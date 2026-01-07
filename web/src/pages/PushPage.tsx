@@ -6,7 +6,8 @@ import { useSmartleadConfig } from "@/api/smartlead"
 
 export function PushPage() {
   const { data: config } = useSmartleadConfig()
-  const { data: approved, isLoading } = useBrands({ status: "approved" })
+  const { data: approvedResp, isLoading } = useBrands({ status: "approved", per_page: 200 })
+  const approved = approvedResp?.data
   const create = useCreatePush()
   const navigate = useNavigate()
 
@@ -27,7 +28,7 @@ export function PushPage() {
       brand_ids: Array.from(selected),
       smartlead_campaign_id: Number(smartleadCampaignId),
     })
-    navigate(`/push/${receipt.id}`)
+    navigate(`/acquisition/push/${receipt.id}`)
   }
 
   return (

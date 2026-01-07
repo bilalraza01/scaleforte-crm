@@ -17,11 +17,20 @@ export interface UpdateUserInput {
 }
 
 const usersKey = ["users"] as const
+const userKey = (id: number) => ["users", id] as const
 
 export function useUsers() {
   return useQuery({
     queryKey: usersKey,
     queryFn: async () => (await http.get<User[]>("/api/v1/users")).data,
+  })
+}
+
+export function useUser(id: number | null) {
+  return useQuery({
+    queryKey: id ? userKey(id) : ["users", "null"],
+    queryFn: async () => (await http.get<User>(`/api/v1/users/${id}`)).data,
+    enabled: id !== null,
   })
 }
 
@@ -47,6 +56,7 @@ export function useUpdateUser(id: number) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: usersKey })
+      void qc.invalidateQueries({ queryKey: userKey(id) })
     },
   })
 }

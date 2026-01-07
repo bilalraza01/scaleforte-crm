@@ -53,7 +53,7 @@ export function InviteUserPage() {
         manager_id: requiresManager ? input.manager_id ?? null : null,
       }
       await invite.mutateAsync(payload)
-      navigate("/users", { replace: true })
+      navigate("/settings/users", { replace: true })
     } catch (err) {
       const e = err as ApiError
       const errs = e.response?.data?.errors
