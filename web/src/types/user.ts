@@ -1,4 +1,11 @@
-export type Role = "admin" | "manager" | "sdr"
+export type Role = "admin" | "manager" | "sdr" | "onboarder" | "accountant"
+
+export type WorkspaceKey =
+  | "acquisition"
+  | "onboarding"
+  | "retention"
+  | "invoicing"
+  | "settings"
 
 export interface User {
   id: number
@@ -9,4 +16,6 @@ export interface User {
   manager_id: number | null
   manager_name: string | null
   invitation_pending: boolean
+  assigned_category_ids: number[]
+  workspace_access: WorkspaceKey[]
 }

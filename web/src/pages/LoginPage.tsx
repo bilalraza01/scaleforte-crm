@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/auth/AuthProvider"
+import { homePathFor } from "@/lib/workspaces"
 import type { ApiError } from "@/lib/http"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -28,15 +29,15 @@ export function LoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) })
 
   if (state.status === "authenticated") {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={homePathFor(state.user)} replace />
   }
 
   const onSubmit = async (input: LoginInput) => {
     setServerError(null)
     try {
-      await signIn(input.email, input.password)
-      const from = (location.state as { from?: string } | null)?.from ?? "/dashboard"
-      navigate(from, { replace: true })
+      const user = await signIn(input.email, input.password)
+      const from = (location.state as { from?: string } | null)?.from
+      navigate(from ?? homePathFor(user), { replace: true })
     } catch (err) {
       const e = err as ApiError
       setServerError(e.response?.data?.error ?? "Invalid email or password")

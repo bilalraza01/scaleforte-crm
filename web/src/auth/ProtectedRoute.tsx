@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "./AuthProvider"
+import { HomeRedirect } from "./HomeRedirect"
 import type { Role } from "@/types/user"
 import type { ReactNode } from "react"
 
@@ -22,7 +23,7 @@ export function ProtectedRoute({
   }
 
   if (roles && !roles.includes(state.user.role)) {
-    return <Navigate to="/dashboard" replace />
+    return <HomeRedirect />
   }
 
   return <>{children}</>
