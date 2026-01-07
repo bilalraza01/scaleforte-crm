@@ -1,16 +1,17 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   useSmartleadConfig,
   useTestSmartleadConnection,
   useUpdateSmartleadConfig,
   useSmartleadHealth,
 } from "@/api/smartlead"
+import { useSystemConfig, useUpdateSystemConfig } from "@/api/systemConfig"
 import { PageHeader } from "@/components/ui/PageHeader"
 import { Card, CardHeader, CardBody } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Input, Label } from "@/components/ui/Input"
 import { Stat } from "@/components/ui/Stat"
-import { Activity, Inbox, AlertTriangle, Save, Wifi } from "lucide-react"
+import { Activity, Inbox, AlertTriangle, Save, Wifi, Target } from "lucide-react"
 
 export function SettingsPage() {
   const { data: config } = useSmartleadConfig()
@@ -48,6 +49,9 @@ export function SettingsPage() {
   return (
     <div className="px-8 py-8 max-w-4xl mx-auto">
       <PageHeader title="Settings" subtitle="Smartlead integration + system configuration." />
+
+      <DailyTargetCard />
+
 
       <Card className="mb-6">
         <CardHeader title="Smartlead integration" subtitle="API key + webhook secret." />
@@ -123,5 +127,59 @@ export function SettingsPage() {
         </Card>
       )}
     </div>
+  )
+}
+
+function DailyTargetCard() {
+  const { data: config } = useSystemConfig()
+  const update = useUpdateSystemConfig()
+  const [target, setTarget] = useState<number | "">("")
+  const [saved, setSaved] = useState(false)
+
+  // Hydrate the input once the config arrives.
+  useEffect(() => {
+    if (config) setTarget(config.daily_brand_target)
+  }, [config?.daily_brand_target])
+
+  const onSave = async () => {
+    if (target === "") return
+    await update.mutateAsync({ daily_brand_target: Number(target) })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader
+        title="Daily targets"
+        subtitle="How many brands each SDR should mark Ready every day. Shown to SDRs as a progress banner on the Worklist."
+      />
+      <CardBody className="space-y-3">
+        <div className="flex items-end gap-3">
+          <div className="flex-1 max-w-xs">
+            <Label htmlFor="daily_brand_target">Brands per SDR per day</Label>
+            <div className="relative">
+              <Target size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="daily_brand_target"
+                type="number"
+                min={0}
+                value={target}
+                onChange={(e) => setTarget(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))}
+                className="pl-9"
+                placeholder="0 = no target"
+              />
+            </div>
+          </div>
+          <Button onClick={onSave} disabled={update.isPending || target === "" || target === config?.daily_brand_target}>
+            {update.isPending ? "Saving…" : "Save"}
+          </Button>
+          {saved && <span className="text-sm text-emerald-700">Saved.</span>}
+        </div>
+        <p className="text-xs text-slate-500">
+          Set to <code>0</code> to hide the banner entirely.
+        </p>
+      </CardBody>
+    </Card>
   )
 }
