@@ -35,27 +35,31 @@ module Api
         daily_target  = SystemConfig.current.daily_brand_target
 
         per_sdr = User.where(id: team_user_ids).map do |sdr|
-          brands = Brand.where(sdr_id: sdr.id)
-          marked_today = brands.where(marked_ready_at: Time.current.all_day).count
+          brands  = Brand.where(sdr_id: sdr.id)
+          periods = marked_ready_periods_for(brands, daily_target)
           { id: sdr.id,
             name: sdr.display_name,
-            mtd_completed: brands.where("updated_at >= ?", Time.current.beginning_of_month).where.not(status: :draft).count,
-            drafts: brands.draft_status.count,
             ready: brands.ready_status.count,
-            approved_or_pushed: brands.where(status: [:approved, :pushed]).count,
-            marked_ready_today: marked_today,
-            engagement: engagement_stats_for_brands(brands)
-          }
+            marked_ready_today:      periods[:today],
+            marked_ready_yesterday:  periods[:yesterday],
+            marked_ready_last_week:  periods[:last_week],
+            marked_ready_last_month: periods[:last_month] }
         end
 
         awaiting_review_count = Brand.ready_status.where(sdr_id: team_user_ids).count
         team_marked_today     = Brand.where(sdr_id: team_user_ids, marked_ready_at: Time.current.all_day).count
+        last_month_wd         = working_days_in_month(Date.current.last_month)
 
         render json: {
           team_size: team_user_ids.size,
           awaiting_review_count: awaiting_review_count,
           daily_brand_target: daily_target,
           team_marked_ready_today: team_marked_today,
+          period_targets: {
+            day:   daily_target,
+            week:  daily_target * 5,
+            month: daily_target * last_month_wd
+          },
           per_sdr: per_sdr
         }
       end
@@ -75,12 +79,13 @@ module Api
         end
 
         per_sdr = User.sdr_role.active.map do |sdr|
-          brands = Brand.where(sdr_id: sdr.id)
-          marked_today = brands.where(marked_ready_at: Time.current.all_day).count
+          brands  = Brand.where(sdr_id: sdr.id)
+          periods = marked_ready_periods_for(brands, daily_target)
           { id: sdr.id, name: sdr.display_name,
-            mtd_completed: brands.where("updated_at >= ?", month_start).where.not(status: :draft).count,
-            marked_ready_today: marked_today,
-            engagement:    engagement_stats_for_brands(brands) }
+            marked_ready_today:      periods[:today],
+            marked_ready_yesterday:  periods[:yesterday],
+            marked_ready_last_week:  periods[:last_week],
+            marked_ready_last_month: periods[:last_month] }
         end
 
         weekly_volume = Brand.where("created_at >= ?", 12.weeks.ago)
@@ -89,6 +94,7 @@ module Api
           .transform_keys { |t| t.to_date.iso8601 }
 
         agency_marked_today = Brand.where(marked_ready_at: Time.current.all_day).count
+        last_month_wd       = working_days_in_month(Date.current.last_month)
 
         render json: {
           totals: {
@@ -104,13 +110,118 @@ module Api
             daily_target: daily_target,
             sdr_count:    User.sdr_role.active.count,
           },
+          period_targets: {
+            day:   daily_target,
+            week:  daily_target * 5,
+            month: daily_target * last_month_wd
+          },
           per_category: per_category,
           per_sdr:      per_sdr,
           weekly_volume: weekly_volume
         }
       end
 
+      # GET /api/v1/dashboards/marked_ready_timeseries
+      # Per-SDR daily "marked Ready" counts for the chart on the admin /
+      # manager dashboards. Period: 7d | 30d | 6m. Optional sdr_ids[]
+      # narrows the result; when missing, returns every active SDR a
+      # manager/admin can see.
+      def marked_ready_timeseries
+        # `manager?` permits admin OR manager — both can use the chart.
+        authorize :dashboard, :manager?, policy_class: DashboardPolicy
+
+        period = params[:period].to_s.presence || "7d"
+        days_back = case period when "30d" then 29 when "6m" then 180 else 6 end
+        range_start = days_back.days.ago.to_date
+        range_end   = Date.current
+
+        scope_user_ids = team_or_agency_sdr_ids
+        requested_ids  = Array(params[:sdr_ids]).map(&:to_i).reject(&:zero?)
+        sdr_ids        = requested_ids.any? ? (requested_ids & scope_user_ids) : scope_user_ids
+
+        rows = Brand.where(sdr_id: sdr_ids)
+                    .where(marked_ready_at: range_start.beginning_of_day..range_end.end_of_day)
+                    .group(:sdr_id, Arel.sql("date_trunc('day', marked_ready_at)::date"))
+                    .count
+
+        days  = (range_start..range_end).to_a
+        names = User.where(id: sdr_ids).pluck(:id, :name).to_h
+
+        by_sdr = sdr_ids.map do |id|
+          counts = days.map { |d| rows[[id, d]] || 0 }
+          { id: id, name: names[id] || "Unknown", counts: counts }
+        end
+
+        render json: {
+          period: period,
+          days:   days.map(&:iso8601),
+          by_sdr: by_sdr
+        }
+      end
+
       private
+
+      # Admin sees every active SDR; Manager sees just their team.
+      def team_or_agency_sdr_ids
+        if current_user.admin_role?
+          User.sdr_role.active.pluck(:id)
+        elsif current_user.manager_role?
+          User.where(manager_id: current_user.id).sdr_role.active.pluck(:id)
+        else
+          []
+        end
+      end
+
+      # ---- Working-day helpers ------------------------------------------
+      # We treat Mon–Fri as working days. Holidays aren't tracked yet.
+
+      def working_day?(date)
+        date.wday.between?(1, 5)
+      end
+
+      def previous_working_day(from = Date.current)
+        d = from - 1
+        d -= 1 until working_day?(d)
+        d
+      end
+
+      def last_n_working_days(n, ending_on: Date.current.yesterday)
+        days, d = [], ending_on
+        while days.size < n
+          days.unshift(d) if working_day?(d)
+          d -= 1
+        end
+        days
+      end
+
+      def working_days_in_month(any_date_in_month)
+        (any_date_in_month.beginning_of_month..any_date_in_month.end_of_month)
+          .count { |d| working_day?(d) }
+      end
+
+      # Per-SDR daily-target buckets for the dashboard table. All counts
+      # are based on Brand#marked_ready_at (set when the AASM mark_ready
+      # event fires).
+      def marked_ready_periods_for(scope, target)
+        today        = Date.current
+        yesterday    = previous_working_day(today)
+        week_days    = last_n_working_days(5, ending_on: yesterday)
+        last_month   = today.last_month
+        lm_wd_count  = working_days_in_month(last_month)
+
+        m = scope.where.not(marked_ready_at: nil)
+        {
+          today:      m.where(marked_ready_at: today.all_day).count,
+          yesterday:  m.where(marked_ready_at: yesterday.all_day).count,
+          last_week:  m.where(marked_ready_at: week_days.first.beginning_of_day..yesterday.end_of_day).count,
+          last_month: m.where(marked_ready_at: last_month.beginning_of_month.beginning_of_day..last_month.end_of_month.end_of_day).count,
+          targets: {
+            day:   target,
+            week:  target * 5,
+            month: target * lm_wd_count
+          }
+        }
+      end
 
       # All engagement aggregates roll up to ContactEngagementSummary (kept in
       # sync by ProcessEngagementEventJob) — keeps this dashboard query fast.

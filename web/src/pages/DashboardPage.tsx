@@ -1,13 +1,20 @@
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/auth/AuthProvider"
-import { useAdminDashboard, useManagerDashboard, useSdrDashboard } from "@/api/dashboards"
+import {
+  useAdminDashboard, useManagerDashboard, useSdrDashboard,
+  useMarkedReadyTimeseries, type ChartPeriod,
+} from "@/api/dashboards"
 import { PageHeader } from "@/components/ui/PageHeader"
 import { Card, CardHeader, CardBody } from "@/components/ui/Card"
 import { Stat } from "@/components/ui/Stat"
 import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
 import { Badge } from "@/components/ui/Badge"
-import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target } from "lucide-react"
+import { Button } from "@/components/ui/Button"
+import { cn } from "@/lib/utils"
+import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown } from "lucide-react"
 import {
-  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar
+  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar,
+  LineChart, Line, Legend,
 } from "recharts"
 
 export function DashboardPage() {
@@ -121,41 +128,32 @@ function ManagerView() {
         <Stat icon={<MailCheck size={16} />}  tone="emerald" label="Active SDRs" value={data.per_sdr.length} />
       </div>
 
+      <PerSdrTrendCard sdrs={data.per_sdr.map((s) => ({ id: s.id, name: s.name }))} />
+
       <Card>
-        <CardHeader title="Per-SDR" subtitle="Today's progress + month-to-date." />
+        <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period + your review queue." />
         <Table>
           <THead>
             <TR>
               <TH>SDR</TH>
               <TH>Today</TH>
-              <TH>MTD</TH><TH>Drafts</TH><TH>Ready</TH>
-              <TH>Approved/Pushed</TH><TH>Reply rate</TH><TH>Bounce rate</TH>
+              <TH>Yesterday</TH>
+              <TH>Last 5 days</TH>
+              <TH>Last month</TH>
+              <TH>Awaiting review</TH>
             </TR>
           </THead>
           <tbody>
-            {data.per_sdr.map((s) => {
-              const hit = target > 0 && s.marked_ready_today >= target
-              return (
-                <TR key={s.id}>
-                  <TD className="font-medium text-slate-900">{s.name}</TD>
-                  <TD className="tabular-nums">
-                    {target > 0 ? (
-                      <Badge tone={hit ? "emerald" : s.marked_ready_today === 0 ? "rose" : "amber"}>
-                        {s.marked_ready_today} / {target}
-                      </Badge>
-                    ) : (
-                      <span className="text-slate-600 tabular-nums">{s.marked_ready_today}</span>
-                    )}
-                  </TD>
-                  <TD className="tabular-nums">{s.mtd_completed}</TD>
-                  <TD className="tabular-nums"><Badge tone="slate">{s.drafts}</Badge></TD>
-                  <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
-                  <TD className="tabular-nums"><Badge tone="emerald">{s.approved_or_pushed}</Badge></TD>
-                  <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
-                  <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
-                </TR>
-              )
-            })}
+            {data.per_sdr.map((s) => (
+              <TR key={s.id}>
+                <TD className="font-medium text-slate-900">{s.name}</TD>
+                <PeriodCell value={s.marked_ready_today}      target={data.period_targets.day} />
+                <PeriodCell value={s.marked_ready_yesterday}  target={data.period_targets.day} />
+                <PeriodCell value={s.marked_ready_last_week}  target={data.period_targets.week} />
+                <PeriodCell value={s.marked_ready_last_month} target={data.period_targets.month} />
+                <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
+              </TR>
+            ))}
           </tbody>
         </Table>
       </Card>
@@ -308,41 +306,227 @@ function AdminView() {
         </Table>
       </Card>
 
+      <PerSdrTrendCard sdrs={data.per_sdr.map((s) => ({ id: s.id, name: s.name }))} />
+
       <Card>
-        <CardHeader title="Per-SDR" subtitle="Today + month-to-date." />
+        <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period. Targets follow the daily-target setting." />
         <Table>
           <THead>
             <TR>
-              <TH>SDR</TH><TH>Today</TH><TH>MTD</TH><TH>Sent</TH>
-              <TH>Reply rate</TH><TH>Bounce rate</TH>
+              <TH>SDR</TH>
+              <TH>Today</TH>
+              <TH>Yesterday</TH>
+              <TH>Last 5 days</TH>
+              <TH>Last month</TH>
             </TR>
           </THead>
           <tbody>
-            {data.per_sdr.map((s) => {
-              const target = data.today.daily_target
-              const hit = target > 0 && s.marked_ready_today >= target
-              return (
-                <TR key={s.id}>
-                  <TD className="font-medium text-slate-900">{s.name}</TD>
-                  <TD className="tabular-nums">
-                    {target > 0 ? (
-                      <Badge tone={hit ? "emerald" : s.marked_ready_today === 0 ? "rose" : "amber"}>
-                        {s.marked_ready_today} / {target}
-                      </Badge>
-                    ) : (
-                      <span className="text-slate-600 tabular-nums">{s.marked_ready_today}</span>
-                    )}
-                  </TD>
-                  <TD className="tabular-nums">{s.mtd_completed}</TD>
-                  <TD className="tabular-nums">{s.engagement.sent}</TD>
-                  <TD className="tabular-nums">{s.engagement.reply_rate}%</TD>
-                  <TD className="tabular-nums">{s.engagement.bounce_rate}%</TD>
-                </TR>
-              )
-            })}
+            {data.per_sdr.map((s) => (
+              <TR key={s.id}>
+                <TD className="font-medium text-slate-900">{s.name}</TD>
+                <PeriodCell value={s.marked_ready_today}      target={data.period_targets.day} />
+                <PeriodCell value={s.marked_ready_yesterday}  target={data.period_targets.day} />
+                <PeriodCell value={s.marked_ready_last_week}  target={data.period_targets.week} />
+                <PeriodCell value={s.marked_ready_last_month} target={data.period_targets.month} />
+              </TR>
+            ))}
           </tbody>
         </Table>
       </Card>
     </>
   )
 }
+
+/* ---------------- helpers / shared components ---------------- */
+
+// Cell that renders "X / target" as a coloured pill — emerald at/over,
+// amber partial, rose at zero, neutral when no target is set.
+function PeriodCell({ value, target }: { value: number; target: number }) {
+  if (target <= 0) return <TD className="tabular-nums text-slate-600">{value}</TD>
+  const tone = value >= target ? "emerald" : value === 0 ? "rose" : "amber"
+  return (
+    <TD className="tabular-nums">
+      <Badge tone={tone}>{value} / {target}</Badge>
+    </TD>
+  )
+}
+
+// Period buttons + multi-select SDR filter + recharts line chart
+// showing per-day "marked Ready" counts. One coloured line per SDR.
+function PerSdrTrendCard({ sdrs }: { sdrs: { id: number; name: string }[] }) {
+  const [period, setPeriod] = useState<ChartPeriod>("7d")
+  // Default: top 5 SDRs by id (keeps the line count readable). User can
+  // open the multi-select to flip them on/off.
+  const [selected, setSelected] = useState<Set<number>>(() => new Set(sdrs.slice(0, 5).map((s) => s.id)))
+
+  // When the SDR list arrives later, populate defaults if we have none.
+  useEffect(() => {
+    if (selected.size === 0 && sdrs.length > 0) {
+      setSelected(new Set(sdrs.slice(0, 5).map((s) => s.id)))
+    }
+  }, [sdrs.length])
+
+  const { data: timeseries } = useMarkedReadyTimeseries(period, [...selected])
+
+  // Recharts wants one row per day, with each SDR as a separate column.
+  const chartData = useMemo(() => {
+    if (!timeseries) return []
+    return timeseries.days.map((day, i) => {
+      const row: Record<string, string | number> = { day: day.slice(5) }  // MM-DD
+      timeseries.by_sdr.forEach((s) => { row[s.name] = s.counts[i] })
+      return row
+    })
+  }, [timeseries])
+
+  const lineColors = [
+    "oklch(0.55 0.18 270)", // brand
+    "oklch(0.65 0.16 145)", // emerald
+    "oklch(0.74 0.16 75)",  // amber
+    "oklch(0.62 0.20 25)",  // rose
+    "oklch(0.55 0.18 200)", // sky
+    "oklch(0.55 0.18 320)", // pink
+    "oklch(0.55 0.18 100)", // olive
+    "oklch(0.55 0.18 30)",  // orange
+    "oklch(0.45 0.10 270)", // dark indigo
+    "oklch(0.40 0.10 145)", // dark green
+  ]
+
+  return (
+    <Card className="mb-6">
+      <CardHeader
+        title="Marked Ready over time"
+        subtitle="Per-SDR daily counts. Pick a period and which SDRs to chart."
+        action={
+          <div className="flex items-center gap-2">
+            <PeriodToggle value={period} onChange={setPeriod} />
+            <SdrMultiSelect sdrs={sdrs} selected={selected} onChange={setSelected} />
+          </div>
+        }
+      />
+      <CardBody>
+        {!timeseries ? (
+          <p className="text-sm text-slate-400">Loading chart…</p>
+        ) : selected.size === 0 ? (
+          <p className="text-sm text-slate-400">Pick at least one SDR to chart.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgb(226 232 240)" vertical={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "rgb(100 116 139)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "rgb(100 116 139)" }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid rgb(226 232 240)", fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
+              {timeseries.by_sdr.map((s, i) => (
+                <Line
+                  key={s.id}
+                  type="monotone"
+                  dataKey={s.name}
+                  stroke={lineColors[i % lineColors.length]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function PeriodToggle({ value, onChange }: { value: ChartPeriod; onChange: (p: ChartPeriod) => void }) {
+  const opts: { v: ChartPeriod; label: string }[] = [
+    { v: "7d", label: "7 days" },
+    { v: "30d", label: "30 days" },
+    { v: "6m", label: "6 months" },
+  ]
+  return (
+    <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+      {opts.map(({ v, label }) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={cn(
+            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
+            value === v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SdrMultiSelect({
+  sdrs, selected, onChange,
+}: {
+  sdrs: { id: number; name: string }[]
+  selected: Set<number>
+  onChange: (next: Set<number>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const toggle = (id: number) => {
+    const next = new Set(selected)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onChange(next)
+  }
+
+  const allOn = sdrs.every((s) => selected.has(s.id))
+  const allOff = selected.size === 0
+
+  return (
+    <div ref={ref} className="relative">
+      <Button type="button" size="sm" variant="secondary" onClick={() => setOpen((o) => !o)}>
+        {selected.size === 0
+          ? "Pick SDRs"
+          : allOn
+            ? `All ${sdrs.length} SDRs`
+            : `${selected.size} of ${sdrs.length} SDRs`}
+        <ChevronDown size={14} />
+      </Button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 w-64 rounded-md border border-slate-200 bg-white shadow-lg py-1 max-h-80 overflow-y-auto">
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-100 text-xs">
+            <button
+              type="button"
+              onClick={() => onChange(new Set(sdrs.map((s) => s.id)))}
+              className="text-slate-700 hover:underline"
+              disabled={allOn}
+            >Select all</button>
+            <button
+              type="button"
+              onClick={() => onChange(new Set())}
+              className="text-slate-700 hover:underline"
+              disabled={allOff}
+            >Clear</button>
+          </div>
+          {sdrs.map((s) => (
+            <label
+              key={s.id}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(s.id)}
+                onChange={() => toggle(s.id)}
+              />
+              <span className="text-slate-700">{s.name}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+

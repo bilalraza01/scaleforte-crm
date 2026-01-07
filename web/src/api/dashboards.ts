@@ -22,15 +22,15 @@ export interface ManagerDashboard {
   awaiting_review_count: number
   daily_brand_target: number
   team_marked_ready_today: number
+  period_targets: { day: number; week: number; month: number }
   per_sdr: {
     id: number
     name: string
-    mtd_completed: number
-    drafts: number
     ready: number
-    approved_or_pushed: number
     marked_ready_today: number
-    engagement: EngagementStats
+    marked_ready_yesterday: number
+    marked_ready_last_week: number
+    marked_ready_last_month: number
   }[]
 }
 
@@ -48,6 +48,7 @@ export interface AdminDashboard {
     daily_target: number
     sdr_count: number
   }
+  period_targets: { day: number; week: number; month: number }
   per_category: {
     id: number
     name: string
@@ -58,11 +59,20 @@ export interface AdminDashboard {
   per_sdr: {
     id: number
     name: string
-    mtd_completed: number
     marked_ready_today: number
-    engagement: EngagementStats
+    marked_ready_yesterday: number
+    marked_ready_last_week: number
+    marked_ready_last_month: number
   }[]
   weekly_volume: Record<string, number>
+}
+
+export type ChartPeriod = "7d" | "30d" | "6m"
+
+export interface MarkedReadyTimeseries {
+  period: ChartPeriod
+  days: string[]              // ISO YYYY-MM-DD
+  by_sdr: { id: number; name: string; counts: number[] }[]
 }
 
 export function useSdrDashboard() {
@@ -83,5 +93,20 @@ export function useAdminDashboard() {
   return useQuery({
     queryKey: ["dashboards", "admin"],
     queryFn: async () => (await http.get<AdminDashboard>("/api/v1/dashboards/admin")).data,
+  })
+}
+
+export function useMarkedReadyTimeseries(period: ChartPeriod, sdrIds: number[]) {
+  return useQuery({
+    queryKey: ["dashboards", "marked_ready_timeseries", period, [...sdrIds].sort((a, b) => a - b).join(",")],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set("period", period)
+      sdrIds.forEach((id) => params.append("sdr_ids[]", String(id)))
+      const { data } = await http.get<MarkedReadyTimeseries>(
+        `/api/v1/dashboards/marked_ready_timeseries?${params.toString()}`
+      )
+      return data
+    },
   })
 }

@@ -78,9 +78,10 @@ Rails.application.routes.draw do
       get "integration_health/smartlead", to: "integration_health#smartlead"
 
       # Phase 3 Week 7 dashboards (per-role).
-      get "dashboards/sdr",     to: "dashboards#sdr"
-      get "dashboards/manager", to: "dashboards#manager"
-      get "dashboards/admin",   to: "dashboards#admin"
+      get "dashboards/sdr",                       to: "dashboards#sdr"
+      get "dashboards/manager",                   to: "dashboards#manager"
+      get "dashboards/admin",                     to: "dashboards#admin"
+      get "dashboards/marked_ready_timeseries",   to: "dashboards#marked_ready_timeseries"
 
       # Phase 3 Week 8 audit log (Admin only).
       resources :audit_logs, only: [:index]
