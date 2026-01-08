@@ -3,6 +3,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import {
   useAdminDashboard, useManagerDashboard, useSdrDashboard,
   useMarkedReadyTimeseries, type ChartPeriod,
+  type AdminDashboard, type ManagerDashboard,
 } from "@/api/dashboards"
 import { PageHeader } from "@/components/ui/PageHeader"
 import { Card, CardHeader, CardBody } from "@/components/ui/Card"
@@ -11,7 +12,7 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
-import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown } from "lucide-react"
+import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import {
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
@@ -124,34 +125,46 @@ function ManagerView() {
 
       <PerSdrTrendCard sdrs={data.per_sdr.map((s) => ({ id: s.id, name: s.name }))} />
 
-      <Card>
-        <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period + your review queue." />
-        <Table>
-          <THead>
-            <TR>
-              <TH>SDR</TH>
-              <TH>Today</TH>
-              <TH>Yesterday</TH>
-              <TH>Last 5 days</TH>
-              <TH>Last month</TH>
-              <TH>Awaiting review</TH>
-            </TR>
-          </THead>
-          <tbody>
-            {data.per_sdr.map((s) => (
-              <TR key={s.id}>
-                <TD className="font-medium text-slate-900">{s.name}</TD>
-                <PeriodCell value={s.marked_ready_today}      target={data.period_targets.day} />
-                <PeriodCell value={s.marked_ready_yesterday}  target={data.period_targets.day} />
-                <PeriodCell value={s.marked_ready_last_week}  target={data.period_targets.week} />
-                <PeriodCell value={s.marked_ready_last_month} target={data.period_targets.month} />
-                <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
-              </TR>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      <ManagerPerSdrTable rows={data.per_sdr} periodTargets={data.period_targets} />
     </>
+  )
+}
+
+function ManagerPerSdrTable({
+  rows, periodTargets,
+}: {
+  rows: ManagerDashboard["per_sdr"]
+  periodTargets: { day: number; week: number; month: number }
+}) {
+  const { sorted, sort, setSort } = useSortedSdrs(rows, { key: "today", dir: "desc" })
+  return (
+    <Card>
+      <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period + your review queue. Click any column to sort." />
+      <Table>
+        <THead>
+          <TR>
+            <SortableTH k="name"       sort={sort} setSort={setSort}>SDR</SortableTH>
+            <SortableTH k="today"      sort={sort} setSort={setSort}>Today</SortableTH>
+            <SortableTH k="yesterday"  sort={sort} setSort={setSort}>Yesterday</SortableTH>
+            <SortableTH k="last_week"  sort={sort} setSort={setSort}>Last 5 days</SortableTH>
+            <SortableTH k="last_month" sort={sort} setSort={setSort}>Last month</SortableTH>
+            <SortableTH k="ready"      sort={sort} setSort={setSort}>Awaiting review</SortableTH>
+          </TR>
+        </THead>
+        <tbody>
+          {sorted.map((s) => (
+            <TR key={s.id}>
+              <TD className="font-medium text-slate-900">{s.name}</TD>
+              <PeriodCell value={s.marked_ready_today}      target={periodTargets.day} />
+              <PeriodCell value={s.marked_ready_yesterday}  target={periodTargets.day} />
+              <PeriodCell value={s.marked_ready_last_week}  target={periodTargets.week} />
+              <PeriodCell value={s.marked_ready_last_month} target={periodTargets.month} />
+              <TD className="tabular-nums"><Badge tone="amber">{s.ready}</Badge></TD>
+            </TR>
+          ))}
+        </tbody>
+      </Table>
+    </Card>
   )
 }
 
@@ -270,32 +283,44 @@ function AdminView() {
 
       <PerSdrTrendCard sdrs={data.per_sdr.map((s) => ({ id: s.id, name: s.name }))} />
 
-      <Card>
-        <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period. Targets follow the daily-target setting." />
-        <Table>
-          <THead>
-            <TR>
-              <TH>SDR</TH>
-              <TH>Today</TH>
-              <TH>Yesterday</TH>
-              <TH>Last 5 days</TH>
-              <TH>Last month</TH>
-            </TR>
-          </THead>
-          <tbody>
-            {data.per_sdr.map((s) => (
-              <TR key={s.id}>
-                <TD className="font-medium text-slate-900">{s.name}</TD>
-                <PeriodCell value={s.marked_ready_today}      target={data.period_targets.day} />
-                <PeriodCell value={s.marked_ready_yesterday}  target={data.period_targets.day} />
-                <PeriodCell value={s.marked_ready_last_week}  target={data.period_targets.week} />
-                <PeriodCell value={s.marked_ready_last_month} target={data.period_targets.month} />
-              </TR>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      <AdminPerSdrTable rows={data.per_sdr} periodTargets={data.period_targets} />
     </>
+  )
+}
+
+function AdminPerSdrTable({
+  rows, periodTargets,
+}: {
+  rows: AdminDashboard["per_sdr"]
+  periodTargets: { day: number; week: number; month: number }
+}) {
+  const { sorted, sort, setSort } = useSortedSdrs(rows, { key: "today", dir: "desc" })
+  return (
+    <Card>
+      <CardHeader title="Per-SDR" subtitle="Brands marked Ready by period. Click any column to sort." />
+      <Table>
+        <THead>
+          <TR>
+            <SortableTH k="name"       sort={sort} setSort={setSort}>SDR</SortableTH>
+            <SortableTH k="today"      sort={sort} setSort={setSort}>Today</SortableTH>
+            <SortableTH k="yesterday"  sort={sort} setSort={setSort}>Yesterday</SortableTH>
+            <SortableTH k="last_week"  sort={sort} setSort={setSort}>Last 5 days</SortableTH>
+            <SortableTH k="last_month" sort={sort} setSort={setSort}>Last month</SortableTH>
+          </TR>
+        </THead>
+        <tbody>
+          {sorted.map((s) => (
+            <TR key={s.id}>
+              <TD className="font-medium text-slate-900">{s.name}</TD>
+              <PeriodCell value={s.marked_ready_today}      target={periodTargets.day} />
+              <PeriodCell value={s.marked_ready_yesterday}  target={periodTargets.day} />
+              <PeriodCell value={s.marked_ready_last_week}  target={periodTargets.week} />
+              <PeriodCell value={s.marked_ready_last_month} target={periodTargets.month} />
+            </TR>
+          ))}
+        </tbody>
+      </Table>
+    </Card>
   )
 }
 
@@ -303,6 +328,82 @@ function AdminView() {
 
 // Cell that renders "X / target" as a coloured pill — emerald at/over,
 // amber partial, rose at zero, neutral when no target is set.
+// Per-SDR table sort state. Keys cover both admin (4 period cols + name)
+// and manager (+ "ready" review-queue count) tables.
+type SdrSortKey = "name" | "today" | "yesterday" | "last_week" | "last_month" | "ready"
+type SortDir = "asc" | "desc"
+interface SortState { key: SdrSortKey; dir: SortDir }
+
+interface SortableSdrRow {
+  name: string
+  marked_ready_today: number
+  marked_ready_yesterday: number
+  marked_ready_last_week: number
+  marked_ready_last_month: number
+  ready?: number
+}
+
+function useSortedSdrs<R extends SortableSdrRow>(rows: R[], initial: SortState) {
+  const [sort, setSort] = useState<SortState>(initial)
+  const sorted = useMemo(() => {
+    const accessor = (s: R): string | number => {
+      switch (sort.key) {
+        case "name":       return s.name.toLowerCase()
+        case "today":      return s.marked_ready_today
+        case "yesterday":  return s.marked_ready_yesterday
+        case "last_week":  return s.marked_ready_last_week
+        case "last_month": return s.marked_ready_last_month
+        case "ready":      return s.ready ?? 0
+      }
+    }
+    return [...rows].sort((a, b) => {
+      const av = accessor(a), bv = accessor(b)
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0
+      return sort.dir === "asc" ? cmp : -cmp
+    })
+  }, [rows, sort])
+  return { sorted, sort, setSort }
+}
+
+function SortableTH({
+  k, sort, setSort, children, align = "left",
+}: {
+  k: SdrSortKey
+  sort: SortState
+  setSort: (s: SortState) => void
+  children: React.ReactNode
+  align?: "left" | "right"
+}) {
+  const active = sort.key === k
+  const onClick = () => {
+    if (active) {
+      setSort({ key: k, dir: sort.dir === "asc" ? "desc" : "asc" })
+    } else {
+      // First click on a numerical column starts at desc (highest first)
+      // since that's almost always what the admin wants. Name starts asc.
+      setSort({ key: k, dir: k === "name" ? "asc" : "desc" })
+    }
+  }
+  const Icon = active ? (sort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
+  return (
+    <TH>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "inline-flex items-center gap-1 font-medium uppercase tracking-wide text-xs transition-colors",
+          "hover:text-slate-900",
+          active ? "text-slate-900" : "text-slate-500",
+          align === "right" && "ml-auto"
+        )}
+      >
+        {children}
+        <Icon size={11} className={active ? "text-slate-900" : "text-slate-300"} />
+      </button>
+    </TH>
+  )
+}
+
 function PeriodCell({ value, target }: { value: number; target: number }) {
   if (target <= 0) return <TD className="tabular-nums text-slate-600">{value}</TD>
   const tone = value >= target ? "emerald" : value === 0 ? "rose" : "amber"
