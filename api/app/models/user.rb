@@ -1,7 +1,11 @@
 class User < ApplicationRecord
   # PRD §6.1 / FR-1.9 — no public signup. :registerable intentionally removed.
   # FR-1.7 7-day idle timeout enforced via :timeoutable + initializer.
-  devise :invitable, :database_authenticatable,
+  # :invitable was removed in Phase 2 — admins now set the initial
+  # password directly via Api::V1::UsersController#create. The schema
+  # columns it added (invitation_token, etc.) stay until a follow-up
+  # cleanup migration drops them.
+  devise :database_authenticatable,
          :recoverable, :rememberable, :validatable, :timeoutable,
          :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
 

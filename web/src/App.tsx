@@ -7,9 +7,8 @@ import { RequireWorkspace } from "@/auth/RequireWorkspace"
 import { HomeRedirect } from "@/auth/HomeRedirect"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
-import { AcceptInvitationPage } from "@/pages/AcceptInvitationPage"
 import { UsersPage } from "@/pages/UsersPage"
-import { InviteUserPage } from "@/pages/InviteUserPage"
+import { NewUserPage } from "@/pages/NewUserPage"
 import { EditUserPage } from "@/pages/EditUserPage"
 import { CategoriesPage } from "@/pages/CategoriesPage"
 import { CampaignsPage } from "@/pages/CampaignsPage"
@@ -50,7 +49,6 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
             <Route
               element={
@@ -125,7 +123,7 @@ function App() {
                   path="users/new"
                   element={
                     <ProtectedRoute roles={["admin", "manager"]}>
-                      <InviteUserPage />
+                      <NewUserPage />
                     </ProtectedRoute>
                   }
                 />

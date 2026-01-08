@@ -30,7 +30,7 @@ export function UsersPage() {
             <Link to="/settings/users/new">
               <Button>
                 <UserPlus size={14} />
-                Invite a user
+                New user
               </Button>
             </Link>
           )
@@ -75,7 +75,6 @@ export function UsersPage() {
                       ) : (
                         <Badge tone="rose">deactivated</Badge>
                       )}
-                      {u.invitation_pending && <Badge tone="amber">invite pending</Badge>}
                     </div>
                   </TD>
                   <TD className="text-right">

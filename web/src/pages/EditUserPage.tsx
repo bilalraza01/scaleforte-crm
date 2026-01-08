@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { useUser, useUpdateUser, useUsers, useDeactivateUser } from "@/api/users"
+import { useUser, useUpdateUser, useUsers, useDeactivateUser, useResetUserPassword } from "@/api/users"
 import { useAuth } from "@/auth/AuthProvider"
 import { PageHeader } from "@/components/ui/PageHeader"
 import { Card, CardHeader, CardBody } from "@/components/ui/Card"
@@ -20,9 +20,11 @@ export function EditUserPage() {
   const { data: allUsers } = useUsers()
   const update = useUpdateUser(userId)
   const deactivate = useDeactivateUser()
+  const resetPassword = useResetUserPassword()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [showResetModal, setShowResetModal] = useState(false)
 
   // Local form state — initialized once `target` arrives.
   const [name, setName] = useState("")
@@ -192,20 +194,98 @@ export function EditUserPage() {
           )}
           <Button variant="ghost" onClick={() => navigate("/settings/users")}>Cancel</Button>
         </div>
-        {target.active && target.id !== viewer.id && canEdit && (
-          <Button
-            variant="danger"
-            disabled={deactivate.isPending}
-            onClick={async () => {
-              if (!confirm(`Deactivate ${target.name || target.email}?`)) return
-              await deactivate.mutateAsync(target.id)
-              navigate("/settings/users")
-            }}
-          >
-            Deactivate
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button variant="secondary" onClick={() => setShowResetModal(true)}>
+              Reset password
+            </Button>
+          )}
+          {target.active && target.id !== viewer.id && canEdit && (
+            <Button
+              variant="danger"
+              disabled={deactivate.isPending}
+              onClick={async () => {
+                if (!confirm(`Deactivate ${target.name || target.email}?`)) return
+                await deactivate.mutateAsync(target.id)
+                navigate("/settings/users")
+              }}
+            >
+              Deactivate
+            </Button>
+          )}
+        </div>
       </div>
+
+      {showResetModal && (
+        <ResetPasswordModal
+          userId={target.id}
+          userName={target.name || target.email}
+          onClose={() => setShowResetModal(false)}
+          onDone={() => setShowResetModal(false)}
+          mutation={resetPassword}
+        />
+      )}
+    </div>
+  )
+}
+
+function ResetPasswordModal({
+  userId, userName, onClose, onDone, mutation,
+}: {
+  userId: number
+  userName: string
+  onClose: () => void
+  onDone: () => void
+  mutation: ReturnType<typeof useResetUserPassword>
+}) {
+  const [pwd, setPwd] = useState("")
+  const [confirmPwd, setConfirmPwd] = useState("")
+  const [err, setErr] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const submit = async () => {
+    setErr(null)
+    if (pwd.length < 8) return setErr("Password must be at least 8 characters")
+    if (pwd !== confirmPwd) return setErr("Passwords don't match")
+    try {
+      await mutation.mutateAsync({ id: userId, password: pwd })
+      setDone(true)
+      setTimeout(onDone, 1200)
+    } catch {
+      setErr("Reset failed — try again.")
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={onClose}>
+      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <CardHeader title="Reset password" subtitle={`Set a new password for ${userName}.`} />
+        <CardBody className="space-y-3">
+          {done ? (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm p-2.5 rounded-md">
+              Password reset. The user can now sign in with the new password.
+            </div>
+          ) : (
+            <>
+              {err && <div className="bg-rose-50 border border-rose-200 text-rose-900 text-sm p-2.5 rounded-md">{err}</div>}
+              <div>
+                <Label htmlFor="rp">New password</Label>
+                <Input id="rp" type="password" autoFocus value={pwd} onChange={(e) => setPwd(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="rpc">Confirm</Label>
+                <Input id="rpc" type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} />
+              </div>
+              <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
+                <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                <Button onClick={submit} disabled={mutation.isPending}>
+                  {mutation.isPending ? "Resetting…" : "Reset password"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardBody>
+      </Card>
     </div>
   )
 }

@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   # Devise mounted at the top level so the warden scope stays :user
   # (nesting devise_for inside namespace :api / :v1 prefixes the mapping
   # key to :api_v1_user and breaks devise's failure-app delegator).
+  # :invitations dropped in Phase 2 — admins create users with passwords
+  # directly via Api::V1::UsersController#create.
   devise_for :users,
              path: "api/v1/auth",
              path_names: {
@@ -15,9 +17,8 @@ Rails.application.routes.draw do
                sign_out: "sign_out"
              },
              controllers: {
-               sessions:    "api/v1/auth/sessions",
-               passwords:   "api/v1/auth/passwords",
-               invitations: "api/v1/auth/invitations"
+               sessions:  "api/v1/auth/sessions",
+               passwords: "api/v1/auth/passwords"
              },
              skip: [:registrations]
 
@@ -28,8 +29,14 @@ Rails.application.routes.draw do
 
       resource :system_config, only: [:show, :update]
 
-      resources :users, only: [:index, :show, :update] do
-        member { patch :deactivate }
+      resources :users, only: [:index, :show, :create, :update] do
+        member do
+          patch :deactivate
+          post  :reset_password
+        end
+        collection do
+          post :change_password
+        end
         resources :category_assignments, only: [:index, :create, :destroy]
       end
 

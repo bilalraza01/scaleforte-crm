@@ -11,10 +11,6 @@ class UserResource
     user.manager&.display_name
   end
 
-  attribute :invitation_pending do |user|
-    user.invitation_sent_at.present? && user.invitation_accepted_at.nil?
-  end
-
   attribute :assigned_category_ids do |user|
     user.category_assignments.pluck(:category_id)
   end

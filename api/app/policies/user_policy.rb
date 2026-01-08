@@ -12,11 +12,11 @@ class UserPolicy < ApplicationPolicy
     user.admin_role? || record == user || manages?(record)
   end
 
+  # Admin can create any role; Manager can only create SDRs (enforced by
+  # the controller stripping :role from non-admin params and forcing
+  # role=sdr + manager_id=self for manager-initiated creates).
   def create?
-    return true if user.admin_role?
-    return false unless user.manager_role?
-
-    record.is_a?(User) && record.sdr_role?
+    user.admin_role? || user.manager_role?
   end
 
   def update?

@@ -15,7 +15,6 @@ export interface User {
   active: boolean
   manager_id: number | null
   manager_name: string | null
-  invitation_pending: boolean
   assigned_category_ids: number[]
   workspace_access: WorkspaceKey[]
 }
