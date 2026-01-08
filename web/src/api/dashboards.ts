@@ -31,8 +31,6 @@ export interface AdminDashboard {
     ready: number
     approved: number
     pushed: number
-    replied: number
-    bounced: number
   }
   today: {
     marked_ready: number

@@ -98,9 +98,7 @@ module Api
             brands_processed: Brand.count,
             ready:            Brand.ready_status.count,
             approved:         Brand.approved_status.count,
-            pushed:           Brand.pushed_status.count,
-            replied:          ContactEngagementSummary.where.not(last_replied_at: nil).count,
-            bounced:          ContactEngagementSummary.where.not(bounced_at: nil).count
+            pushed:           Brand.pushed_status.count
           },
           today: {
             marked_ready: agency_marked_today,

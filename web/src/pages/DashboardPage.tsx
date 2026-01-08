@@ -12,7 +12,7 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/Table"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
-import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import { Activity, MailCheck, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import {
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
@@ -181,13 +181,11 @@ function AdminView() {
     <>
       <PageHeader title="Executive dashboard" subtitle="Agency-wide brand pipeline + per-SDR performance." />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Stat icon={<Layers     size={16} />} label="Brands processed" value={data.totals.brands_processed} tone="indigo" />
         <Stat icon={<FileCheck2 size={16} />} label="Ready"            value={data.totals.ready}            tone="amber" />
         <Stat icon={<FileCheck2 size={16} />} label="Approved"         value={data.totals.approved}         tone="indigo" />
         <Stat icon={<Send       size={16} />} label="Pushed"           value={data.totals.pushed}           tone="emerald" />
-        <Stat icon={<MailCheck  size={16} />} label="Replied"          value={data.totals.replied}          tone="emerald" />
-        <Stat icon={<MailX      size={16} />} label="Bounced"          value={data.totals.bounced}          tone="rose" />
       </div>
 
       {/* Today's daily-target snapshot — the metric admins/managers care about most. */}
