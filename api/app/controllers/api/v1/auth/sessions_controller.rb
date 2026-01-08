@@ -35,11 +35,15 @@ module Api
 
         def set_jwt_cookie!(user)
           token, _payload = Warden::JWTAuth::UserEncoder.new.call(user, :user, nil)
+          # `secure` requires HTTPS — gated on FORCE_SSL so the IP-only / no-TLS
+          # production deploy still hands out a working cookie. Flip FORCE_SSL=true
+          # after the domain + kamal-proxy SSL are live and `strict` becomes safe again.
+          tls = ENV["FORCE_SSL"] == "true"
           cookies.encrypted[JwtCookie::COOKIE_NAME] = {
             value:     token,
             httponly:  true,
-            secure:    Rails.env.production?,
-            same_site: Rails.env.production? ? :strict : :lax,
+            secure:    tls,
+            same_site: tls ? :strict : :lax,
             expires:   JwtCookie::COOKIE_TTL.from_now,
             path:      "/"
           }

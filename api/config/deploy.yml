@@ -1,0 +1,105 @@
+# Kamal 2 deploy — single-VPS, IP-only HTTP for now.
+# When you add a domain + TLS, set proxy.ssl: true, set proxy.host, and add
+# FORCE_SSL: "true" under env.clear. That single change flips force_ssl, the
+# Devise cookie's `secure` flag, and Strict-Transport-Security headers.
+#
+# Run from the api/ directory:
+#   bundle exec kamal setup    # first time only — installs kamal-proxy + boots accessories
+#   bundle exec kamal deploy   # subsequent deploys
+
+service: scaleforte-crm-api
+
+# Replace bilalraza01 below with your Docker Hub username.
+image: bilalraza01/scaleforte-crm-api
+
+servers:
+  web:
+    hosts:
+      - 76.13.190.132
+  job:
+    hosts:
+      - 76.13.190.132
+    cmd: bundle exec sidekiq
+
+ssh:
+  user: deploy
+
+# kamal-proxy terminates inbound traffic on the host's port 80 and forwards to
+# the app container on app_port. With ssl: false there's no Let's Encrypt and
+# no host match — every request on :80 routes to this app.
+proxy:
+  ssl: false
+  app_port: 3000
+  healthcheck:
+    path: /up
+    interval: 3
+    timeout: 10
+
+registry:
+  username: bilalraza01
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  # Snap-installed Docker on the dev machine doesn't share the build context
+  # with kamal's default `docker-container` buildkit driver — buildx ends up
+  # transferring 2B and failing with "no such file or directory" on the
+  # Dockerfile. The default `docker` driver uses dockerd's built-in BuildKit
+  # which works under snap confinement.
+  driver: docker
+
+env:
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_TO_STDOUT: "1"
+    RAILS_SERVE_STATIC_FILES: "1"
+    # Active Storage → R2 (public, see config/storage.yml).
+    R2_ENDPOINT: https://c960eac148af9ef8b802e03856901501.r2.cloudflarestorage.com
+    R2_BUCKET: scaleforte-crm
+    R2_PUBLIC_URL_HOST: https://pub-f0b8de44b28d4525b1b009885ea68db7.r2.dev
+    # Until the React FE is deployed, no browser origin needs CORS — keep it
+    # pointed at a placeholder so Rack::Cors stays installed but inert.
+    WEB_ORIGIN: http://localhost
+  secret:
+    - RAILS_MASTER_KEY
+    - DATABASE_URL
+    - REDIS_URL
+    - R2_ACCESS_KEY_ID
+    - R2_SECRET_ACCESS_KEY
+    - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
+    - ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
+    - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell:   app exec --interactive --reuse "bash"
+  logs:    app logs -f
+  dbc:     app exec --interactive --reuse "bin/rails dbconsole"
+
+# Postgres + Redis run alongside the app on the same VPS, on the kamal Docker
+# network. App reaches them by accessory name:
+#   DATABASE_URL=postgres://scaleforte:${POSTGRES_PASSWORD}@scaleforte-crm-api-postgres:5432/scaleforte_crm_production
+#   REDIS_URL=redis://scaleforte-crm-api-redis:6379/0
+accessories:
+  postgres:
+    image: postgres:16-alpine
+    host: 76.13.190.132
+    # Bind to localhost only — accessories aren't reachable from the public
+    # internet, only from containers on the kamal network.
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_USER: scaleforte
+        POSTGRES_DB: scaleforte_crm_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    host: 76.13.190.132
+    port: "127.0.0.1:6379:6379"
+    directories:
+      - data:/data

@@ -15,6 +15,4 @@ test:
 
 production:
   <<: *default
-  database: scaleforte_crm_production
-  username: scaleforte
-  password: <%= ENV["SCALEFORTE_DATABASE_PASSWORD"] %>
+  url: <%= ENV["DATABASE_URL"] %>

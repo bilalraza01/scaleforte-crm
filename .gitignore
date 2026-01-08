@@ -4,6 +4,7 @@
 !.env.example
 api/config/master.key
 api/config/credentials/*.key
+api/.kamal/secrets
 
 # Internal docs (not for public repo)
 BUILD_PLAN.md

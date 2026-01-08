@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Wrapper around the globally-installed kamal gem (Ruby 3.1.0 via RVM).
+#
+# Two layers of jank we work around:
+#   1. RVM's shell hooks pin GEM_HOME / GEM_PATH at ruby-2.7.8, which makes
+#      `gem install` for newer Rubies LoadError on zlib.so. We wipe those.
+#   2. Docker on this host is a snap install. `docker --version` (and a few
+#      other subcommands) silently fails unless ~/.bashrc has been sourced
+#      first (snap exposes some interfaces via shell init). So we source
+#      ~/.bashrc first, then override Ruby env.
+#
+# Run from anywhere — wrapper cd's to api/ so kamal finds config/deploy.yml.
+set -e
+cd "$(dirname "$0")/.."
+
+# shellcheck disable=SC1090
+source "$HOME/.bashrc" 2>/dev/null || true
+
+# Point GEM_HOME at the Ruby 3.1.0 system gems dir where kamal lives.
+export GEM_HOME=/home/bilal-raza/.rvm/rubies/ruby-3.1.0/lib/ruby/gems/3.1.0
+export GEM_PATH=$GEM_HOME
+unset BUNDLE_BIN_PATH BUNDLE_GEMFILE RUBY_VERSION
+
+# Put the right Ruby + snap docker on PATH first.
+export PATH=/home/bilal-raza/.rvm/rubies/ruby-3.1.0/bin:/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+exec /home/bilal-raza/.rvm/rubies/ruby-3.1.0/bin/kamal "$@"
