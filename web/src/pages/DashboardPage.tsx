@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
 import { Activity, MailCheck, MailX, Send, Users, Layers, FileCheck2, Inbox, Target, ChevronDown } from "lucide-react"
 import {
-  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar,
+  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
 } from "recharts"
 
@@ -43,7 +43,7 @@ function SdrView() {
     <>
       <PageHeader title={`Welcome back, ${user?.name?.split(" ")[0] ?? ""}`} subtitle="Your prospecting work, at a glance." />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <Stat icon={<FileCheck2 size={16} />} tone="indigo" label="Completed today" value={data.today.completed} />
         <Stat icon={<Inbox      size={16} />} tone="amber"  label="Marked ready today" value={data.today.ready} />
         <Stat
@@ -51,12 +51,6 @@ function SdrView() {
           label="Month to date"
           value={data.month_to_date.completed}
           hint={pctToTarget !== null ? `${pctToTarget}% of target ${data.month_to_date.target}` : "no target set"}
-        />
-        <Stat
-          icon={<MailCheck size={16} />} tone="emerald"
-          label="Reply rate"
-          value={`${data.engagement.reply_rate}%`}
-          hint={`${data.engagement.replied}/${data.engagement.sent} sent`}
         />
       </div>
 
@@ -170,15 +164,9 @@ function AdminView() {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, count]) => ({ week: week.slice(5), count }))
 
-  const categoryChart = data.per_category.map((c) => ({
-    name: c.name.length > 18 ? c.name.slice(0, 17) + "…" : c.name,
-    reply_rate: c.engagement.reply_rate,
-    bounce_rate: c.engagement.bounce_rate,
-  }))
-
   return pageWrap(
     <>
-      <PageHeader title="Executive dashboard" subtitle="Agency-wide reply, bounce, and throughput." />
+      <PageHeader title="Executive dashboard" subtitle="Agency-wide brand pipeline + per-SDR performance." />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Stat icon={<Layers     size={16} />} label="Brands processed" value={data.totals.brands_processed} tone="indigo" />
@@ -235,52 +223,30 @@ function AdminView() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card className="lg:col-span-2">
-          <CardHeader title="Weekly volume" subtitle="Brands created per week, last 12 weeks." />
-          <CardBody>
-            {weekly.length === 0 ? (
-              <p className="text-sm text-slate-400">No data yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={weekly}>
-                  <defs>
-                    <linearGradient id="brandGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="oklch(0.55 0.18 270)" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="oklch(0.55 0.18 270)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(226 232 240)" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 12, fill: "rgb(100 116 139)" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "rgb(100 116 139)" }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid rgb(226 232 240)", fontSize: 12 }} />
-                  <Area type="monotone" dataKey="count" stroke="oklch(0.55 0.18 270)" strokeWidth={2} fill="url(#brandGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader title="Reply vs bounce by category" />
-          <CardBody>
-            {categoryChart.length === 0 ? (
-              <p className="text-sm text-slate-400">No categories yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={categoryChart} layout="vertical" margin={{ left: 10, right: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(226 232 240)" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "rgb(100 116 139)" }} unit="%" />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "rgb(100 116 139)" }} width={100} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid rgb(226 232 240)", fontSize: 12 }} />
-                  <Bar dataKey="reply_rate"  name="Reply %"  fill="oklch(0.65 0.16 145)" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="bounce_rate" name="Bounce %" fill="oklch(0.62 0.20 25)"  radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardBody>
-        </Card>
-      </div>
+      <Card className="mb-6">
+        <CardHeader title="Weekly volume" subtitle="Brands created per week, last 12 weeks." />
+        <CardBody>
+          {weekly.length === 0 ? (
+            <p className="text-sm text-slate-400">No data yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={weekly}>
+                <defs>
+                  <linearGradient id="brandGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.55 0.18 270)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="oklch(0.55 0.18 270)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgb(226 232 240)" vertical={false} />
+                <XAxis dataKey="week" tick={{ fontSize: 12, fill: "rgb(100 116 139)" }} />
+                <YAxis tick={{ fontSize: 12, fill: "rgb(100 116 139)" }} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid rgb(226 232 240)", fontSize: 12 }} />
+                <Area type="monotone" dataKey="count" stroke="oklch(0.55 0.18 270)" strokeWidth={2} fill="url(#brandGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardBody>
+      </Card>
 
       <Card className="mb-6">
         <CardHeader title="Per-category performance" />
@@ -288,7 +254,6 @@ function AdminView() {
           <THead>
             <TR>
               <TH>Category</TH><TH>Brands</TH><TH>Pushed</TH>
-              <TH>Sent</TH><TH>Reply rate</TH><TH>Bounce rate</TH>
             </TR>
           </THead>
           <tbody>
@@ -297,9 +262,6 @@ function AdminView() {
                 <TD className="font-medium text-slate-900">{c.name}</TD>
                 <TD className="tabular-nums">{c.brands_count}</TD>
                 <TD className="tabular-nums"><Badge tone="emerald">{c.pushed_count}</Badge></TD>
-                <TD className="tabular-nums">{c.engagement.sent}</TD>
-                <TD className="tabular-nums">{c.engagement.reply_rate}%</TD>
-                <TD className="tabular-nums">{c.engagement.bounce_rate}%</TD>
               </TR>
             ))}
           </tbody>

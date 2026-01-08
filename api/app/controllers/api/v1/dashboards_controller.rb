@@ -9,7 +9,6 @@ module Api
         today = Time.current.beginning_of_day
         month_start = Time.current.beginning_of_month
 
-        engagement = engagement_stats_for_brands(my_brands)
         recent_replies = EngagementEvent.replies
           .joins(contact: :brand).where(brands: { sdr_id: user_id })
           .order(occurred_at: :desc).limit(10)
@@ -24,7 +23,6 @@ module Api
             target:      current_user.campaign_assignments.where("started_at >= ?", month_start).sum(:target_count)
           },
           status_counts: my_brands.group(:status).count,
-          engagement:    engagement,
           recent_replies: recent_replies.map { |e| reply_card(e) }
         }
       end
@@ -74,8 +72,7 @@ module Api
           brands = Brand.where(campaign_id: campaign_ids)
           { id: cat.id, name: cat.name,
             brands_count: brands.count,
-            pushed_count: brands.pushed_status.count,
-            engagement:   engagement_stats_for_brands(brands) }
+            pushed_count: brands.pushed_status.count }
         end
 
         per_sdr = User.sdr_role.active.map do |sdr|

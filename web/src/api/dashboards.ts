@@ -1,19 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { http } from "@/lib/http"
 
-interface EngagementStats {
-  sent: number
-  replied: number
-  bounced: number
-  reply_rate: number
-  bounce_rate: number
-}
-
 export interface SdrDashboard {
   today: { completed: number; ready: number }
   month_to_date: { completed: number; target: number }
   status_counts: Record<string, number>
-  engagement: EngagementStats
   recent_replies: { id: number; occurred_at: string | null; subject: string | null; preview: string; brand_name: string | null }[]
 }
 
@@ -54,7 +45,6 @@ export interface AdminDashboard {
     name: string
     brands_count: number
     pushed_count: number
-    engagement: EngagementStats
   }[]
   per_sdr: {
     id: number
