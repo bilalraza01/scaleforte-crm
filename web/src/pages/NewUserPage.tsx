@@ -155,7 +155,7 @@ export function NewUserPage() {
                 <Label>Manager {isAdmin ? "" : "(you)"}</Label>
                 {isAdmin ? (
                   <Select {...register("manager_id", { setValueAs: (v) => (v === "" ? null : Number(v)) })}>
-                    <option value="">— pick a manager —</option>
+                    <option value="">Pick a manager</option>
                     {managerOptions.map((m) => (
                       <option key={m.id} value={m.id}>{m.name || m.email}</option>
                     ))}

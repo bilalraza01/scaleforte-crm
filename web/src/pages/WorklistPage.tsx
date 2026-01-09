@@ -151,12 +151,6 @@ export function WorklistPage() {
   const brands = data?.data ?? []
   const pagination = data?.pagination
 
-  const campaignLookup = useMemo(() => {
-    const m = new Map<number, string>()
-    ;(campaigns ?? []).forEach((c) => m.set(c.id, c.label))
-    return m
-  }, [campaigns])
-
   const filtersActive = !!(
     search || status !== "all" || campaignId !== "all" ||
     subcategoryId !== "all" || sdrFilterId !== "all" || createdFrom || createdTo
@@ -425,7 +419,6 @@ export function WorklistPage() {
                 <TH>Brand</TH>
                 <TH>Seller ID</TH>
                 <TH>Subcategory</TH>
-                {canReassign && <TH>Campaign</TH>}
                 {canReassign && <TH>SDR</TH>}
                 <TH className="text-right">Contacts</TH>
                 <TH>Status</TH>
@@ -452,7 +445,6 @@ export function WorklistPage() {
                   </TD>
                   <TD className="font-mono text-xs text-slate-600">{b.amazon_seller_id}</TD>
                   <TD className="text-slate-600">{b.subcategory_name ?? <span className="text-slate-300">—</span>}</TD>
-                  {canReassign && <TD className="text-slate-600">{campaignLookup.get(b.campaign_id) ?? "—"}</TD>}
                   {canReassign && <TD className="text-slate-600">{b.sdr_name ?? "—"}</TD>}
                   <TD className="text-right tabular-nums">{b.contacts.length}</TD>
                   <TD>
@@ -485,7 +477,6 @@ export function WorklistPage() {
           onClose={() => setShowNewBrand(false)}
           defaultCategoryId={selectedCategoryId}
           defaultSubcategoryId={subcategoryId !== "all" ? Number(subcategoryId) : null}
-          showCampaignPicker={isAdmin || isManager}
           // SDRs can only create brands inside their assigned categories;
           // filter the dropdown so they can't pick a forbidden one. Empty
           // set = "no restriction" for admin/manager.
@@ -628,7 +619,7 @@ function ReassignModal({
               <div>
                 <Label>Target SDR</Label>
                 <Select value={targetSdrId} onChange={(e) => setTargetSdrId(e.target.value)}>
-                  <option value="">— pick an SDR —</option>
+                  <option value="">Pick an SDR</option>
                   {sdrOptions.map((u) => (
                     <option key={u.id} value={u.id}>{u.name || u.email}</option>
                   ))}
@@ -784,30 +775,25 @@ function Pagination({
 }
 
 const newBrandSchema = z.object({
-  campaign_id: z.coerce.number().int().positive().optional().or(z.literal(0).transform(() => undefined)),
   subcategory_id: z.coerce.number().int().positive().optional().or(z.literal(0).transform(() => undefined)),
   amazon_seller_id: z.string().min(3, "Seller ID is required"),
-  brand_name: z.string().optional(),
+  brand_name: z.string().min(1, "Brand name is required"),
+  business_name: z.string().min(1, "Business name is required"),
   amazon_link: z.string().url("Must be a URL").optional().or(z.literal("")),
 })
 type NewBrandInput = z.infer<typeof newBrandSchema>
 
 function NewBrandModal({
-  onClose, defaultCategoryId, defaultSubcategoryId, showCampaignPicker, allowedCategoryIds,
+  onClose, defaultCategoryId, defaultSubcategoryId, allowedCategoryIds,
 }: {
   onClose: () => void
   defaultCategoryId: number | null
   defaultSubcategoryId: number | null
-  // Admin/Manager get an explicit Campaign dropdown; SDR doesn't need it
-  // and the BE auto-resolves to the current month's active campaign for
-  // the chosen category.
-  showCampaignPicker: boolean
   // null = no restriction (admin/manager). Set = SDR's assigned categories.
   allowedCategoryIds: Set<number> | null
 }) {
   const navigate = useNavigate()
   const create = useCreateBrand()
-  const { data: campaigns, isLoading: loadingCampaigns } = useCampaigns()
   const { data: categories } = useCategories()
   const visibleCategories = (categories ?? []).filter(
     (c) => allowedCategoryIds === null || allowedCategoryIds.has(c.id)
@@ -836,9 +822,9 @@ function NewBrandModal({
     },
   })
 
-  // Changing Category invalidates whatever subcategory + campaign were
-  // chosen under the old category. Skip the very first run so the
-  // pre-selected default from the Worklist isn't immediately wiped out.
+  // Changing Category invalidates whatever subcategory was chosen under the
+  // old category. Skip the very first run so the pre-selected default from
+  // the Worklist isn't immediately wiped out.
   const initialCategoryRef = useRef(true)
   useEffect(() => {
     if (initialCategoryRef.current) {
@@ -846,7 +832,6 @@ function NewBrandModal({
       return
     }
     resetField("subcategory_id")
-    resetField("campaign_id")
   }, [categoryId, resetField])
 
   // Debounce the seller_id input so we don't ping the API on every keystroke.
@@ -870,14 +855,13 @@ function NewBrandModal({
     }
     try {
       const brand = await create.mutateAsync({
-        // SDR path sends category_id only; BE auto-resolves to the
-        // current month's active campaign. Admin/Manager may override
-        // by picking a specific campaign.
+        // BE auto-resolves to the current month's active campaign for the
+        // chosen category — no explicit campaign_id from the form.
         category_id: categoryId,
-        campaign_id: showCampaignPicker ? input.campaign_id : undefined,
         subcategory_id: input.subcategory_id || undefined,
         amazon_seller_id: input.amazon_seller_id,
-        brand_name: input.brand_name || undefined,
+        brand_name: input.brand_name,
+        business_name: input.business_name,
         amazon_link: input.amazon_link || undefined,
       })
       navigate(`/acquisition/brands/${brand.id}`)
@@ -891,11 +875,6 @@ function NewBrandModal({
       }
     }
   }
-
-  const usableCampaigns = (campaigns ?? []).filter(
-    (c) => (c.status === "active" || c.status === "draft") &&
-           (categoryId === null || c.category_id === categoryId)
-  )
 
   const onAddSubcategory = async () => {
     const name = newSubName.trim()
@@ -931,7 +910,7 @@ function NewBrandModal({
                 value={categoryId ?? ""}
                 onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
               >
-                <option value="">— pick a category —</option>
+                <option value="">Pick a category</option>
                 {visibleCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -948,7 +927,7 @@ function NewBrandModal({
               {!showAddSub ? (
                 <div className="flex gap-2">
                   <Select {...register("subcategory_id")} disabled={!categoryId} className="flex-1">
-                    <option value="">— none —</option>
+                    <option value="">None</option>
                     {(subcategories ?? []).map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -978,19 +957,6 @@ function NewBrandModal({
               )}
             </div>
 
-            {showCampaignPicker && (
-              <div>
-                <Label>Campaign (optional)</Label>
-                <Select {...register("campaign_id")} disabled={loadingCampaigns || !categoryId}>
-                  <option value="">— current month, auto-picked —</option>
-                  {usableCampaigns.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </Select>
-                <FieldError>{errors.campaign_id?.message}</FieldError>
-              </div>
-            )}
-
             <div>
               <Label>Amazon Seller ID</Label>
               <Input placeholder="A1B2C3D4E5F6G7" autoFocus {...register("amazon_seller_id")} />
@@ -1011,8 +977,15 @@ function NewBrandModal({
             </div>
 
             <div>
-              <Label>Brand name (optional)</Label>
+              <Label>Brand name</Label>
               <Input placeholder="TAHIRO" {...register("brand_name")} />
+              <FieldError>{errors.brand_name?.message}</FieldError>
+            </div>
+
+            <div>
+              <Label>Business name</Label>
+              <Input placeholder="TAHIRO, INC" {...register("business_name")} />
+              <FieldError>{errors.business_name?.message}</FieldError>
             </div>
 
             <div>
@@ -1024,7 +997,7 @@ function NewBrandModal({
             <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
               <Button variant="ghost" type="button" onClick={onClose}>Cancel</Button>
               <Button type="submit" disabled={isSubmitting || create.isPending || duplicate}>
-                {create.isPending ? "Creating…" : "Create + edit"}
+                {create.isPending ? "Creating…" : "Create"}
               </Button>
             </div>
           </form>

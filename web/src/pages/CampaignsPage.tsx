@@ -51,7 +51,7 @@ export function CampaignsPage() {
             <div className="md:col-span-2">
               <Label>Category</Label>
               <Select {...register("category_id")}>
-                <option value="">— pick —</option>
+                <option value="">Pick a category</option>
                 {(categories ?? []).filter((c) => c.active).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -141,7 +141,7 @@ function AssignModal({ campaign, sdrs, onClose }: {
           <div>
             <Label>SDR</Label>
             <Select value={sdrId} onChange={(e) => setSdrId(e.target.value === "" ? "" : Number(e.target.value))}>
-              <option value="">— pick an SDR —</option>
+              <option value="">Pick an SDR</option>
               {sdrs.map((s) => <option key={s.id} value={s.id}>{s.name || s.email}</option>)}
             </Select>
           </div>

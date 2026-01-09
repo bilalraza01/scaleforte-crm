@@ -146,7 +146,7 @@ export function EditUserPage() {
               onChange={(e) => setManagerId(e.target.value)}
               disabled={!canEditAdminFields}
             >
-              <option value="">— pick a manager —</option>
+              <option value="">Pick a manager</option>
               {managers.map((m) => (
                 <option key={m.id} value={m.id}>{m.name || m.email}</option>
               ))}

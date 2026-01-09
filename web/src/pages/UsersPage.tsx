@@ -161,7 +161,7 @@ function CategoryAssignmentsCell({ sdr, viewer }: { sdr: User; viewer: User }) {
             className="text-xs border border-slate-200 rounded px-1.5 py-0.5"
             autoFocus
           >
-            <option value="">— pick —</option>
+            <option value="">Pick a category</option>
             {unassignedCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
