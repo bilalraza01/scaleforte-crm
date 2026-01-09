@@ -11,7 +11,13 @@
 #   - ContactEngagementSummary rows for ~70% of pushed brands so dashboards
 #     show real reply / bounce numbers
 
-return unless Rails.env.development?
+# Allow dev unconditionally; prod requires explicit opt-in so we don't
+# accidentally pollute a real DB. Set ALLOW_PROD_SEEDS=true on the
+# rails-runner one-off to seed against production.
+unless Rails.env.development? || ENV["ALLOW_PROD_SEEDS"] == "true"
+  puts "→ skipping seeds (not development; set ALLOW_PROD_SEEDS=true to override)"
+  return
+end
 
 require "faker"
 Faker::Config.locale = "en"

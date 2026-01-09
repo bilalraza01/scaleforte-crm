@@ -44,11 +44,16 @@ gem "paper_trail", "~> 15.1"
 # --- Transactional email (production) ---
 gem "postmark-rails", "~> 0.22"
 
+# --- Demo / seed data ---
+# Lives in the default group (not :development) so production can run
+# `rails db:seed` before go-live to pre-populate the demo dataset for
+# client testing. Wipe + restore plain DB at handover.
+gem "faker", "~> 3.5"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ]
   gem "rspec-rails", "~> 7.1"
   gem "factory_bot_rails", "~> 6.4"
-  gem "faker", "~> 3.5"
   gem "dotenv-rails", "~> 3.1"
 end
 
