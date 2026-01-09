@@ -261,7 +261,7 @@ module Api
       def brand_params
         permitted = [:campaign_id, :category_id, :subcategory_id, :amazon_seller_id,
                      :brand_name, :business_name,
-                     :revenue, :country, :website, :asin, :amazon_link,
+                     :revenue, :revenue_bucket, :country, :website, :asin, :amazon_link,
                      :facebook_url, :instagram_url, :company_linkedin_url]
         # Only Admin/Manager can hand a brand to a different SDR; SDR creations
         # are always self-owned (forced server-side in #create).

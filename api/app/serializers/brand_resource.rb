@@ -4,6 +4,7 @@ class BrandResource
   attributes :id, :amazon_seller_id, :brand_name, :business_name,
              :country, :website, :asin, :amazon_link,
              :facebook_url, :instagram_url, :company_linkedin_url,
+             :revenue_bucket,
              :status, :skip_reason, :pushed_at
 
   attribute :revenue do |b|

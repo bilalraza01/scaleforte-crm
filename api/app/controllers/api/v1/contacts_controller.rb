@@ -52,7 +52,9 @@ module Api
       end
 
       def contact_params
-        params.require(:contact).permit(:name, :designation, :email, :phone, :personal_linkedin, :is_primary)
+        params.require(:contact).permit(:name, :first_name, :last_name,
+                                        :designation, :email, :phone,
+                                        :personal_linkedin, :is_primary)
       end
     end
   end

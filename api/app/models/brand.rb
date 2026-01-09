@@ -21,9 +21,24 @@ class Brand < ApplicationRecord
   # Integer 1 (formerly :in_progress) is intentionally skipped — the gap is
   # safe for AR enums. Merged into :draft via a data migration.
 
+  # Coarse revenue bucket replaces the exact-decimal `revenue` field for new
+  # entries (see "Changes to be made in the CRM" #5). Decimal column stays
+  # for backward compat with historical seed data.
+  REVENUE_BUCKETS = %w[
+    0-10k
+    10k-30k
+    30k-50k
+    50k-100k
+    100k-250k
+    250k-500k
+    500k-1m
+    1m+
+  ].freeze
+
   validates :amazon_seller_id, presence: true,
             uniqueness: { case_sensitive: false, message: "already exists" }
   validates :skip_reason, presence: true, if: -> { skipped_status? }
+  validates :revenue_bucket, inclusion: { in: REVENUE_BUCKETS }, allow_blank: true
   validate  :subcategory_must_match_campaign_category
 
   scope :for_sdr,         ->(user) { where(sdr_id: user.id) }
@@ -57,10 +72,17 @@ class Brand < ApplicationRecord
     end
   end
 
+  # An Amazon seller with a Facebook page but no formal website should still
+  # be marketable. Accept *any* of the four URLs as the "online presence"
+  # signal for the Ready guard (see "Changes to be made in the CRM" #6).
+  def online_presence?
+    [website, facebook_url, instagram_url, company_linkedin_url].any?(&:present?)
+  end
+
   # FR-3.6 + FR-5.4 — required to leave Draft for Ready.
   def ready_to_submit?
     brand_name.present? &&
-      website.present? &&
+      online_presence? &&
       contacts.any? { |c| c.email.present? } &&
       audit_screenshots.attached? &&
       pain_points.any?
@@ -69,7 +91,7 @@ class Brand < ApplicationRecord
   def missing_ready_fields
     missing = []
     missing << "brand_name" if brand_name.blank?
-    missing << "website"    if website.blank?
+    missing << "website_or_social" unless online_presence?
     missing << "contact_with_email" if contacts.none? { |c| c.email.present? }
     missing << "audit_screenshot"   unless audit_screenshots.attached?
     missing << "pain_point"         if pain_points.none?

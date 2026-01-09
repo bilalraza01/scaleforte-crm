@@ -35,6 +35,8 @@ export interface Contact {
   id: number
   brand_id: number
   name: string | null
+  first_name: string | null
+  last_name: string | null
   designation: string | null
   email: string
   phone: string | null
@@ -90,6 +92,7 @@ export interface Brand {
   brand_name: string | null
   business_name: string | null
   revenue: string | null
+  revenue_bucket: string | null
   country: string | null
   website: string | null
   asin: string | null

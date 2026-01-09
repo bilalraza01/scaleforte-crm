@@ -190,6 +190,7 @@ export function WorklistPage() {
   }, [campaigns, categoryId])
 
   const [exporting, setExporting] = useState(false)
+  const [showExportConfirm, setShowExportConfirm] = useState(false)
   const onExport = async () => {
     setExporting(true)
     try {
@@ -207,6 +208,7 @@ export function WorklistPage() {
       URL.revokeObjectURL(url)
     } finally {
       setExporting(false)
+      setShowExportConfirm(false)
     }
   }
 
@@ -247,7 +249,7 @@ export function WorklistPage() {
         action={
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button size="lg" variant="secondary" onClick={onExport} disabled={exporting}>
+              <Button size="lg" variant="secondary" onClick={() => setShowExportConfirm(true)} disabled={exporting}>
                 <Download size={16} />
                 {exporting ? "Exporting…" : "Export CSV"}
               </Button>
@@ -503,6 +505,33 @@ export function WorklistPage() {
           }}
         />
       )}
+
+      {showExportConfirm && (
+        // Backdrop has no onClick — explicit Cancel only (Changes #3).
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader title="Export current view to CSV?" />
+            <CardBody>
+              <p className="text-sm text-slate-600">
+                This will download a CSV containing all contacts for the brands
+                that match your current filters
+                {pagination?.total_count
+                  ? ` — ${pagination.total_count} brand${pagination.total_count === 1 ? "" : "s"}.`
+                  : "."}
+                Each contact gets one row, with up to 5 audit-screenshot URLs
+                per brand.
+              </p>
+              <div className="flex gap-2 justify-end pt-3 mt-3 border-t border-slate-100">
+                <Button variant="ghost" onClick={() => setShowExportConfirm(false)}>Cancel</Button>
+                <Button onClick={onExport} disabled={exporting}>
+                  <Download size={14} />
+                  {exporting ? "Exporting…" : "Yes, export"}
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
@@ -591,7 +620,7 @@ function ReassignModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardHeader
           title={`Reassign ${brandIds.length} brand${brandIds.length === 1 ? "" : "s"}`}
@@ -891,7 +920,7 @@ function NewBrandModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardHeader
           title="New brand"

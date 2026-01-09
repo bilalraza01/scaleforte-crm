@@ -130,7 +130,7 @@ function AssignModal({ campaign, sdrs, onClose }: {
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardHeader
           title={`Assign SDR to ${campaign.label}`}

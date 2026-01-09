@@ -12,6 +12,21 @@ import type { ApiError } from "@/lib/http"
 import { PainPointsPanel } from "@/components/PainPointsPanel"
 import { AuditScreenshotsPanel } from "@/components/AuditScreenshotsPanel"
 import { validateContactEmail } from "@/lib/email-validation"
+import { COUNTRIES } from "@/lib/countries"
+
+// Eight revenue buckets, must match Brand::REVENUE_BUCKETS on the BE.
+const REVENUE_BUCKETS = [
+  "0-10k", "10k-30k", "30k-50k", "50k-100k",
+  "100k-250k", "250k-500k", "500k-1m", "1m+",
+] as const
+
+// Lightweight URL validator — accepts http(s) and requires a TLD-like
+// pattern so `hhtps:dscasca.com` is rejected. Empty string is allowed
+// (URL fields are individually optional; at least one is required at
+// mark-ready time, enforced by the BE).
+const URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i
+const validateOptionalUrl = (v: string | null | undefined) =>
+  !v || URL_RE.test(v) || "Must be a valid URL (https://example.com)"
 
 export function BrandEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -36,10 +51,13 @@ function BrandEditor({ brand, user }: { brand: Brand; user: User }) {
   const skip = useSkipBrand(brand.id)
   const [missing, setMissing] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  const [showMarkReady, setShowMarkReady] = useState(false)
+  const [showSkip, setShowSkip] = useState(false)
 
-  const { register, handleSubmit, reset, getValues, formState: { isDirty } } = useForm<Partial<Brand>>({
-    defaultValues: brand,
-  })
+  const {
+    register, handleSubmit, reset, getValues,
+    formState: { isDirty, errors }
+  } = useForm<Partial<Brand>>({ defaultValues: brand })
 
   // Re-sync form when the brand is refetched after mutations,
   // but keep any field the user has edited but not yet saved.
@@ -51,17 +69,17 @@ function BrandEditor({ brand, user }: { brand: Brand; user: User }) {
     setTimeout(() => setSaved(false), 1500)
   })
 
-  const onMarkReady = async () => {
+  const onConfirmMarkReady = async () => {
     setMissing([])
     try {
-      // Persist any pending form edits first so the server-side
-      // guard sees the latest values (e.g. just-typed website).
       if (isDirty) await update.mutateAsync(getValues())
       await markReady.mutateAsync()
+      setShowMarkReady(false)
     } catch (err) {
       const e = err as ApiError
       const m = (e.response?.data as { missing_fields?: string[] } | undefined)?.missing_fields
       if (m) setMissing(m)
+      setShowMarkReady(false)
     }
   }
 
@@ -99,35 +117,55 @@ function BrandEditor({ brand, user }: { brand: Brand; user: User }) {
         <form onSubmit={onSubmit} className="bg-white shadow rounded p-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-600">Brand details</h2>
 
-          <Field label="Amazon Seller ID" {...register("amazon_seller_id")} disabled />
-          <Field label="Brand name"      {...register("brand_name")} disabled={!canEdit} />
-          <Field label="Business name"   {...register("business_name")} disabled={!canEdit} />
-          <Field label="Revenue"         {...register("revenue")} disabled={!canEdit} />
-          <Field label="Country"         {...register("country")} disabled={!canEdit} />
-          <Field label="Website"         {...register("website")} disabled={!canEdit} />
-          <Field label="ASIN"            {...register("asin")} disabled={!canEdit} />
-          <Field label="Amazon URL"      {...register("amazon_link")} disabled={!canEdit} />
-          <Field label="Facebook"        {...register("facebook_url")} disabled={!canEdit} />
-          <Field label="Instagram"       {...register("instagram_url")} disabled={!canEdit} />
-          <Field label="Company LinkedIn" {...register("company_linkedin_url")} disabled={!canEdit} />
+          <Field label="Amazon Seller ID" required {...register("amazon_seller_id")} disabled />
+          <Field label="Brand name" required {...register("brand_name", { required: "Required" })} disabled={!canEdit} error={errors.brand_name?.message as string | undefined} />
+          <Field label="Business name" required {...register("business_name", { required: "Required" })} disabled={!canEdit} error={errors.business_name?.message as string | undefined} />
+
+          <SelectField label="Revenue bucket" {...register("revenue_bucket")} disabled={!canEdit}>
+            <option value="">Pick a bucket</option>
+            {REVENUE_BUCKETS.map((b) => (
+              <option key={b} value={b}>${b}</option>
+            ))}
+          </SelectField>
+
+          <SelectField label="Country" {...register("country")} disabled={!canEdit}>
+            <option value="">Pick a country</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </SelectField>
+
+          <p className="text-xs text-slate-500 pt-1">
+            At least one of Website / Facebook / Instagram / LinkedIn is required before marking Ready.
+          </p>
+          <Field label="Website"  {...register("website",  { validate: validateOptionalUrl })} disabled={!canEdit} error={errors.website?.message  as string | undefined} placeholder="https://example.com" />
+          <Field label="Facebook" {...register("facebook_url", { validate: validateOptionalUrl })} disabled={!canEdit} error={errors.facebook_url?.message as string | undefined} placeholder="https://facebook.com/…" />
+          <Field label="Instagram" {...register("instagram_url", { validate: validateOptionalUrl })} disabled={!canEdit} error={errors.instagram_url?.message as string | undefined} placeholder="https://instagram.com/…" />
+          <Field label="Company LinkedIn" {...register("company_linkedin_url", { validate: validateOptionalUrl })} disabled={!canEdit} error={errors.company_linkedin_url?.message as string | undefined} placeholder="https://linkedin.com/company/…" />
+
+          <Field label="ASIN" {...register("asin")} disabled={!canEdit} />
+          <Field label="Amazon URL" {...register("amazon_link", { validate: validateOptionalUrl })} disabled={!canEdit} error={errors.amazon_link?.message as string | undefined} placeholder="https://amazon.com/dp/…" />
 
           <div className="flex gap-2 pt-2">
             <button type="submit" disabled={update.isPending || !canEdit} className="px-3 py-2 bg-slate-900 text-white rounded hover:bg-slate-700 disabled:opacity-50">
               {update.isPending ? "Saving…" : "Save draft"}
             </button>
             {canMarkReady && (
-              <button type="button" onClick={onMarkReady} disabled={markReady.isPending} className="px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={() => setShowMarkReady(true)}
+                disabled={markReady.isPending}
+                className="px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+              >
                 Mark Ready
               </button>
             )}
             {canEdit && (
               <button
                 type="button"
-                onClick={async () => {
-                  const reason = prompt("Reason for skipping?")
-                  if (reason) await skip.mutateAsync(reason)
-                }}
+                onClick={() => setShowSkip(true)}
                 className="px-3 py-2 text-rose-600 hover:underline"
+                title="Remove this brand from the active worklist without deleting it. Use Skip (not Delete) so the seller ID stays in the dedupe history."
               >
                 Skip
               </button>
@@ -164,19 +202,130 @@ function BrandEditor({ brand, user }: { brand: Brand; user: User }) {
           </div>
         </div>
       </div>
+
+      {showMarkReady && (
+        <ConfirmModal
+          title="Mark this brand Ready?"
+          body="Once marked Ready, the brand goes to your manager for review. Double-check everything (contacts, pain points, audit screenshots) is in order."
+          confirmLabel={markReady.isPending ? "Submitting…" : "Yes, mark Ready"}
+          confirmTone="emerald"
+          onConfirm={onConfirmMarkReady}
+          onClose={() => setShowMarkReady(false)}
+        />
+      )}
+
+      {showSkip && (
+        <SkipModal
+          onClose={() => setShowSkip(false)}
+          onSubmit={async (reason) => {
+            await skip.mutateAsync(reason)
+            setShowSkip(false)
+          }}
+          isPending={skip.isPending}
+        />
+      )}
     </div>
   )
 }
 
-const Field = ({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
+const Field = ({ label, required, error, ...props }: {
+  label: string
+  required?: boolean
+  error?: string
+} & React.InputHTMLAttributes<HTMLInputElement>) => (
   <div>
-    <label className="block text-xs font-semibold mb-1 text-slate-600">{label}</label>
+    <label className="block text-xs font-semibold mb-1 text-slate-600">
+      {label}{required && <span className="text-rose-600 ml-0.5">*</span>}
+    </label>
     <input
       {...props}
       className="w-full border rounded px-2 py-1.5 disabled:bg-slate-100"
     />
+    {error && <p className="text-rose-600 text-xs mt-0.5">{error}</p>}
   </div>
 )
+
+const SelectField = ({ label, required, children, ...props }: {
+  label: string
+  required?: boolean
+  children: React.ReactNode
+} & React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <div>
+    <label className="block text-xs font-semibold mb-1 text-slate-600">
+      {label}{required && <span className="text-rose-600 ml-0.5">*</span>}
+    </label>
+    <select {...props} className="w-full border rounded px-2 py-1.5 disabled:bg-slate-100">
+      {children}
+    </select>
+  </div>
+)
+
+function ConfirmModal({ title, body, confirmLabel, confirmTone, onConfirm, onClose }: {
+  title: string
+  body: string
+  confirmLabel: string
+  confirmTone: "emerald" | "rose"
+  onConfirm: () => void | Promise<void>
+  onClose: () => void
+}) {
+  const btnClass = confirmTone === "emerald"
+    ? "bg-emerald-600 hover:bg-emerald-700"
+    : "bg-rose-600 hover:bg-rose-700"
+  return (
+    // Backdrop intentionally has no onClick — modal can only close via the
+    // explicit Cancel button (Changes to be made in the CRM #3).
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+      <div className="bg-white rounded shadow-lg w-full max-w-md p-5">
+        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        <p className="text-sm text-slate-600 mt-2">{body}</p>
+        <div className="flex gap-2 justify-end mt-4">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-slate-600 hover:underline">Cancel</button>
+          <button type="button" onClick={onConfirm} className={`px-3 py-1.5 text-white rounded ${btnClass}`}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkipModal({ onClose, onSubmit, isPending }: {
+  onClose: () => void
+  onSubmit: (reason: string) => void | Promise<void>
+  isPending: boolean
+}) {
+  const [reason, setReason] = useState("")
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+      <div className="bg-white rounded shadow-lg w-full max-w-md p-5">
+        <h3 className="text-base font-semibold text-slate-900">Skip this brand</h3>
+        <p className="text-sm text-slate-600 mt-2">
+          Use Skip — not Delete — when a brand is out of business, a duplicate, or has no findable email. The seller ID stays in the dedupe history so it doesn't come back round the next month.
+        </p>
+        <label className="block text-xs font-semibold mt-3 mb-1 text-slate-600">
+          Reason<span className="text-rose-600 ml-0.5">*</span>
+        </label>
+        <textarea
+          autoFocus
+          rows={3}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. out of business, duplicate seller, no email findable"
+          className="w-full border rounded px-2 py-1.5 text-sm"
+        />
+        <div className="flex gap-2 justify-end mt-4">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-slate-600 hover:underline">Cancel</button>
+          <button
+            type="button"
+            disabled={!reason.trim() || isPending}
+            onClick={() => onSubmit(reason.trim())}
+            className="px-3 py-1.5 bg-rose-600 text-white rounded hover:bg-rose-700 disabled:opacity-50"
+          >
+            {isPending ? "Skipping…" : "Skip brand"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ContactsPanel({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
   const create = useCreateContact(brand.id)
@@ -214,11 +363,15 @@ function ContactsPanel({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
 
 function ContactRow({ brandId, contact, canEdit, onDelete }: { brandId: number; contact: Contact; canEdit: boolean; onDelete: () => void }) {
   const update = useUpdateContact(brandId, contact.id)
+  const displayName =
+    [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
+    contact.name ||
+    contact.email
   return (
     <div className="border rounded p-3">
       <div className="flex justify-between items-start">
         <div>
-          <div className="font-medium">{contact.name || contact.email}{contact.is_primary && <span className="ml-2 text-xs text-emerald-700">primary</span>}</div>
+          <div className="font-medium">{displayName}{contact.is_primary && <span className="ml-2 text-xs text-emerald-700">primary</span>}</div>
           <div className="text-xs text-slate-500">{contact.designation} · {contact.email}</div>
           {contact.phone && <div className="text-xs text-slate-500">{contact.phone}</div>}
         </div>
@@ -237,29 +390,119 @@ function ContactRow({ brandId, contact, canEdit, onDelete }: { brandId: number; 
 
 function ContactForm({ onCancel, onSubmit, saving }: {
   onCancel: () => void
-  onSubmit: (input: Partial<Contact>) => Promise<void>
+  onSubmit: (input: Partial<Contact> & { phone_dial?: string; phone_number?: string }) => Promise<void>
   saving: boolean
 }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<Partial<Contact>>()
+  const { register, handleSubmit, formState: { errors } } = useForm<{
+    first_name: string
+    last_name: string
+    designation: string
+    email: string
+    phone_dial: string
+    phone_number: string
+    personal_linkedin: string
+    is_primary: boolean
+  }>({ defaultValues: { phone_dial: "1" } })
+
   return (
     <form
-      onSubmit={handleSubmit(async (input) => onSubmit(input))}
+      onSubmit={handleSubmit(async (input) => {
+        // Compose phone E.164-ish from dial + number, but only if a number
+        // was actually typed — empty number means "phone not on file".
+        const phone = input.phone_number?.trim()
+          ? `+${input.phone_dial}${input.phone_number.replace(/[^\d]/g, "")}`
+          : undefined
+        await onSubmit({
+          first_name: input.first_name,
+          last_name: input.last_name,
+          designation: input.designation,
+          email: input.email,
+          phone,
+          personal_linkedin: input.personal_linkedin || undefined,
+          is_primary: input.is_primary,
+        })
+      })}
       className="border-2 border-dashed rounded p-3 space-y-2 bg-slate-50"
     >
-      <input placeholder="Name" {...register("name")} className="w-full border rounded px-2 py-1.5" />
-      <input placeholder="Designation" {...register("designation")} className="w-full border rounded px-2 py-1.5" />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs font-semibold mb-1 text-slate-600">
+            First name<span className="text-rose-600 ml-0.5">*</span>
+          </label>
+          <input
+            {...register("first_name", { required: "Required" })}
+            className="w-full border rounded px-2 py-1.5"
+          />
+          {errors.first_name?.message && <p className="text-rose-600 text-xs">{errors.first_name.message}</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1 text-slate-600">
+            Last name<span className="text-rose-600 ml-0.5">*</span>
+          </label>
+          <input
+            {...register("last_name", { required: "Required" })}
+            className="w-full border rounded px-2 py-1.5"
+          />
+          {errors.last_name?.message && <p className="text-rose-600 text-xs">{errors.last_name.message}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold mb-1 text-slate-600">
+          Designation<span className="text-rose-600 ml-0.5">*</span>
+        </label>
+        <input
+          {...register("designation", { required: "Required" })}
+          placeholder="CEO"
+          className="w-full border rounded px-2 py-1.5"
+        />
+        {errors.designation?.message && <p className="text-rose-600 text-xs">{errors.designation.message}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold mb-1 text-slate-600">
+          Email<span className="text-rose-600 ml-0.5">*</span>
+        </label>
+        <input
+          type="email"
+          placeholder="ceo@example.com"
+          {...register("email", { required: "Email is required", validate: validateContactEmail })}
+          aria-invalid={errors.email ? "true" : "false"}
+          className="w-full border rounded px-2 py-1.5"
+        />
+        {errors.email?.message && (
+          <p className="text-rose-600 text-xs">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold mb-1 text-slate-600">
+          Phone <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <div className="flex gap-1">
+          <select
+            {...register("phone_dial")}
+            className="border rounded px-2 py-1.5 w-28 text-sm bg-white"
+            aria-label="Country code"
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.dial}>{c.code} +{c.dial}</option>
+            ))}
+          </select>
+          <input
+            {...register("phone_number")}
+            placeholder="555-123-4567"
+            className="flex-1 border rounded px-2 py-1.5"
+            inputMode="tel"
+          />
+        </div>
+      </div>
+
       <input
-        placeholder="Email"
-        type="email"
-        {...register("email", { required: "Email is required", validate: validateContactEmail })}
-        aria-invalid={errors.email ? "true" : "false"}
+        placeholder="LinkedIn URL (optional)"
+        {...register("personal_linkedin")}
         className="w-full border rounded px-2 py-1.5"
       />
-      {errors.email?.message && (
-        <p className="text-rose-600 text-xs">{errors.email.message}</p>
-      )}
-      <input placeholder="Phone" {...register("phone")} className="w-full border rounded px-2 py-1.5" />
-      <input placeholder="LinkedIn" {...register("personal_linkedin")} className="w-full border rounded px-2 py-1.5" />
       <label className="inline-flex items-center gap-2 text-sm">
         <input type="checkbox" {...register("is_primary")} />
         Primary contact

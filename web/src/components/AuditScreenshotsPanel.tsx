@@ -1,4 +1,4 @@
-import { useState, useRef, type DragEvent } from "react"
+import { useState, useRef, useEffect, type DragEvent } from "react"
 import {
   useDeleteAuditScreenshot,
   useUploadAuditScreenshot,
@@ -58,6 +58,32 @@ export function AuditScreenshotsPanel({
     if (canEdit && !atCap) void handleFiles(e.dataTransfer.files)
   }
 
+  // Clipboard-paste support: when the user PrtSc's a screenshot it lands
+  // on the clipboard as an image — let them Ctrl+V it directly into this
+  // panel instead of saving to disk first (Changes to be made in the CRM #12).
+  useEffect(() => {
+    if (!canEdit) return
+    const onPaste = (e: ClipboardEvent) => {
+      if (atCap || !e.clipboardData) return
+      const files: File[] = []
+      for (const item of Array.from(e.clipboardData.items)) {
+        if (item.kind === "file") {
+          const f = item.getAsFile()
+          if (f) files.push(f)
+        }
+      }
+      if (files.length === 0) return
+      e.preventDefault()
+      // Build a synthetic FileList-shaped object the existing handler
+      // already accepts.
+      const dt = new DataTransfer()
+      files.forEach((f) => dt.items.add(f))
+      void handleFiles(dt.files)
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [canEdit, atCap, remaining])  // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -86,7 +112,7 @@ export function AuditScreenshotsPanel({
             ? `Limit reached — delete one to add another (max ${MAX_PER_BRAND} per brand).`
             : upload.isPending
               ? "Uploading…"
-              : `Drop a screenshot here, or click to pick a file (JPG/PNG/WebP, ≤ 5 MB). ${remaining} slot${remaining === 1 ? "" : "s"} left.`}
+              : `Drop a screenshot here, paste from clipboard (Ctrl+V), or click to pick a file (JPG/PNG/WebP, ≤ 5 MB). ${remaining} slot${remaining === 1 ? "" : "s"} left.`}
           <input
             ref={inputRef}
             type="file"
