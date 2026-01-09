@@ -1,0 +1,42 @@
+# Kamal 2 deploy — frontend (nginx + Vite-built SPA).
+#
+# This is the public-facing service: kamal-proxy terminates TLS for
+# portal.scaleforte.com and routes traffic to this nginx container. nginx
+# itself reverse-proxies /api, /up, /cable to the Rails service via
+# kamal-proxy on the shared kamal Docker network — see web/nginx.conf.
+#
+# Run from the web/ directory:
+#   bin/kamal setup    # first time only
+#   bin/kamal deploy   # subsequent FE-only releases (Rails untouched)
+
+service: scaleforte-crm-web
+
+image: bilalraza01/scaleforte-crm-web
+
+servers:
+  web:
+    hosts:
+      - 76.13.190.132
+
+ssh:
+  user: deploy
+
+# kamal-proxy auto-requests Let's Encrypt for portal.scaleforte.com.
+proxy:
+  ssl: true
+  host: portal.scaleforte.com
+  app_port: 80
+  healthcheck:
+    path: /index.html
+    interval: 3
+    timeout: 10
+
+registry:
+  username: bilalraza01
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  # Same snap-Docker workaround as the API service — see api/config/deploy.yml.
+  driver: docker

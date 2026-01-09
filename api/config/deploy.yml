@@ -24,12 +24,14 @@ servers:
 ssh:
   user: deploy
 
-# kamal-proxy terminates inbound traffic on :80/:443 and forwards to the app
-# container on app_port. With ssl: true + a host, kamal-proxy auto-requests a
-# Let's Encrypt cert and redirects HTTP → HTTPS.
+# API is now an INTERNAL service — the frontend (scaleforte-crm-web) is the
+# public face on portal.scaleforte.com and reverse-proxies /api, /up, /cable
+# back here. kamal-proxy still routes by host so we register a fake hostname
+# that's never resolvable in DNS — it's just the label nginx uses in its
+# `Host:` header to make kamal-proxy forward the request. See web/nginx.conf.
 proxy:
-  ssl: true
-  host: portal.scaleforte.com
+  ssl: false
+  host: api-internal.scaleforte
   app_port: 3000
   healthcheck:
     path: /up

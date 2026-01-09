@@ -1,0 +1,28 @@
+# Don't ship dev clutter into the build context — Vite handles its own deps.
+node_modules
+dist
+dist-ssr
+.vite
+coverage
+.eslintcache
+
+# Local env / OS / editor files.
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+*.swp
+*.swo
+
+# Git metadata + dev-only Dockerfile.
+.git
+.gitignore
+Dockerfile.dev
+
+# Tests.
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
