@@ -52,7 +52,6 @@ if admin.new_record?
     password_confirmation: "Password123!",
     active: true
   )
-  admin.skip_invitation = true
   admin.save!
 end
 puts "  ✓ admin: #{admin.email}"
@@ -73,7 +72,6 @@ managers = manager_specs.map do |spec|
       password_confirmation: "Password123!",
       active: true
     )
-    m.skip_invitation = true
     m.save!
   end
   m
@@ -96,7 +94,6 @@ sdrs = managers.flat_map.with_index do |manager, m_idx|
         password_confirmation: "Password123!",
         active: true
       )
-      u.skip_invitation = true
       u.save!
     end
     u
@@ -112,7 +109,6 @@ if onboarder.new_record?
     name: "Olivia Onboarding", role: :onboarder, active: true,
     password: "Password123!", password_confirmation: "Password123!"
   )
-  onboarder.skip_invitation = true
   onboarder.save!
 end
 
@@ -122,7 +118,6 @@ if accountant.new_record?
     name: "Alex Accounts", role: :accountant, active: true,
     password: "Password123!", password_confirmation: "Password123!"
   )
-  accountant.skip_invitation = true
   accountant.save!
 end
 puts "  ✓ onboarder + accountant"
