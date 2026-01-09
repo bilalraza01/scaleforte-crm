@@ -24,11 +24,12 @@ servers:
 ssh:
   user: deploy
 
-# kamal-proxy terminates inbound traffic on the host's port 80 and forwards to
-# the app container on app_port. With ssl: false there's no Let's Encrypt and
-# no host match — every request on :80 routes to this app.
+# kamal-proxy terminates inbound traffic on :80/:443 and forwards to the app
+# container on app_port. With ssl: true + a host, kamal-proxy auto-requests a
+# Let's Encrypt cert and redirects HTTP → HTTPS.
 proxy:
-  ssl: false
+  ssl: true
+  host: portal.scaleforte.com
   app_port: 3000
   healthcheck:
     path: /up
@@ -54,13 +55,15 @@ env:
     RAILS_ENV: production
     RAILS_LOG_TO_STDOUT: "1"
     RAILS_SERVE_STATIC_FILES: "1"
+    # Single env-var gate that flips force_ssl, assume_ssl, and the Devise
+    # auth-cookie's secure flag in lockstep — see api/config/environments/
+    # production.rb and api/app/controllers/api/v1/auth/sessions_controller.rb.
+    FORCE_SSL: "true"
     # Active Storage → R2 (public, see config/storage.yml).
     R2_ENDPOINT: https://c960eac148af9ef8b802e03856901501.r2.cloudflarestorage.com
     R2_BUCKET: scaleforte-crm
     R2_PUBLIC_URL_HOST: https://pub-f0b8de44b28d4525b1b009885ea68db7.r2.dev
-    # Until the React FE is deployed, no browser origin needs CORS — keep it
-    # pointed at a placeholder so Rack::Cors stays installed but inert.
-    WEB_ORIGIN: http://localhost
+    WEB_ORIGIN: https://portal.scaleforte.com
   secret:
     - RAILS_MASTER_KEY
     - DATABASE_URL

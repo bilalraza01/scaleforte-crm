@@ -24,4 +24,12 @@ unset BUNDLE_BIN_PATH BUNDLE_GEMFILE RUBY_VERSION
 # Put the right Ruby + snap docker on PATH first.
 export PATH=/home/bilal-raza/.rvm/rubies/ruby-3.1.0/bin:/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Snap-Docker is confined and can only read **non-hidden** paths under $HOME
+# (the `home` interface excludes dot-prefixed dirs). Kamal clones the repo
+# into Dir.tmpdir/kamal-clones before building — default /tmp and ~/.cache
+# are both outside the snap's reach, so buildx transfers 0 bytes of the
+# Dockerfile and the build dies. Pin TMPDIR to a visible $HOME path.
+export TMPDIR="$HOME/kamal-tmp"
+mkdir -p "$TMPDIR"
+
 exec /home/bilal-raza/.rvm/rubies/ruby-3.1.0/bin/kamal "$@"
